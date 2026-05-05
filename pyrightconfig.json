@@ -1,0 +1,15 @@
+{
+  "include": [
+    "."
+  ],
+  "extraPaths": [
+    ".",
+    "./Functions",
+    "./Shared"
+  ],
+  "exclude": [
+    ".venv",
+    "__pycache__",
+    ".python_packages"
+  ]
+}

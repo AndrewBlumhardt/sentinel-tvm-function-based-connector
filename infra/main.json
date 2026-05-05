@@ -1,0 +1,733 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "metadata": {
+    "_generator": {
+      "name": "bicep",
+      "version": "0.38.33.27573",
+      "templateHash": "7835090050758999413"
+    }
+  },
+  "parameters": {
+    "namePrefix": {
+      "type": "string",
+      "defaultValue": "sentinel-tvm",
+      "metadata": {
+        "description": "Prefix used for generated resource names."
+      }
+    },
+    "location": {
+      "type": "string",
+      "defaultValue": "[resourceGroup().location]",
+      "metadata": {
+        "description": "Azure region for the Function App, DCR, and DCE."
+      }
+    },
+    "functionAppName": {
+      "type": "string",
+      "defaultValue": "[format('{0}-func', parameters('namePrefix'))]",
+      "metadata": {
+        "description": "Name of the Function App to create."
+      }
+    },
+    "workspaceName": {
+      "type": "string",
+      "metadata": {
+        "description": "Name of the existing Log Analytics workspace used by Microsoft Sentinel."
+      }
+    },
+    "workspaceResourceGroupName": {
+      "type": "string",
+      "defaultValue": "[resourceGroup().name]",
+      "metadata": {
+        "description": "Resource group containing the existing Log Analytics workspace."
+      }
+    },
+    "dataCollectionEndpointName": {
+      "type": "string",
+      "defaultValue": "",
+      "metadata": {
+        "description": "Name of the Data Collection Endpoint. Leave empty to use the default convention."
+      }
+    },
+    "dataCollectionRuleName": {
+      "type": "string",
+      "defaultValue": "",
+      "metadata": {
+        "description": "Name of the Data Collection Rule. Leave empty to use the default convention."
+      }
+    }
+  },
+  "variables": {
+    "copy": [
+      {
+        "name": "scheduleAppSettings",
+        "count": "[length(variables('datasets'))]",
+        "input": {
+          "name": "[variables('datasets')[copyIndex('scheduleAppSettings')].scheduleSetting]",
+          "value": "[coalesce(variables('scheduleDefaults')[variables('datasets')[copyIndex('scheduleAppSettings')].scheduleSetting], '0 0 1 * * *')]"
+        }
+      },
+      {
+        "name": "datasetToggleSettings",
+        "count": "[length(variables('datasets'))]",
+        "input": {
+          "name": "[format('Dataset__{0}__enabled', variables('datasets')[copyIndex('datasetToggleSettings')].name)]",
+          "value": "[string(bool(variables('datasets')[copyIndex('datasetToggleSettings')].enabled))]"
+        }
+      }
+    ],
+    "$fxv#0": {
+      "collectorVersion": "0.1.0",
+      "datasets": [
+        {
+          "name": "DeviceTvmSoftwareInventory",
+          "enabled": true,
+          "sourceType": "AdvancedHunting",
+          "query": "DeviceTvmSoftwareInventory",
+          "destinationTable": "DeviceTvmSoftwareInventory_CL",
+          "dcrStreamName": "Custom-DeviceTvmSoftwareInventory",
+          "scheduleSetting": "Schedule_DeviceTvmSoftwareInventory",
+          "batchSize": 500,
+          "pageSize": 10000,
+          "collectionMode": "FullSnapshot",
+          "pageOrderBy": "Timestamp asc"
+        },
+        {
+          "name": "DeviceTvmSoftwareVulnerabilities",
+          "enabled": true,
+          "sourceType": "AdvancedHunting",
+          "query": "DeviceTvmSoftwareVulnerabilities",
+          "destinationTable": "DeviceTvmSoftwareVulnerabilities_CL",
+          "dcrStreamName": "Custom-DeviceTvmSoftwareVulnerabilities",
+          "scheduleSetting": "Schedule_DeviceTvmSoftwareVulnerabilities",
+          "batchSize": 500,
+          "pageSize": 10000,
+          "collectionMode": "FullSnapshot",
+          "pageOrderBy": "Timestamp asc"
+        },
+        {
+          "name": "DeviceTvmSoftwareVulnerabilitiesKB",
+          "enabled": true,
+          "sourceType": "AdvancedHunting",
+          "query": "DeviceTvmSoftwareVulnerabilitiesKB",
+          "destinationTable": "DeviceTvmSoftwareVulnerabilitiesKB_CL",
+          "dcrStreamName": "Custom-DeviceTvmSoftwareVulnerabilitiesKB",
+          "scheduleSetting": "Schedule_DeviceTvmSoftwareVulnerabilitiesKB",
+          "batchSize": 500,
+          "pageSize": 10000,
+          "collectionMode": "FullSnapshot",
+          "pageOrderBy": "Timestamp asc"
+        },
+        {
+          "name": "DeviceTvmSecureConfigurationAssessment",
+          "enabled": true,
+          "sourceType": "AdvancedHunting",
+          "query": "DeviceTvmSecureConfigurationAssessment",
+          "destinationTable": "DeviceTvmSecureConfigurationAssessment_CL",
+          "dcrStreamName": "Custom-DeviceTvmSecureConfigurationAssessment",
+          "scheduleSetting": "Schedule_DeviceTvmSecureConfigurationAssessment",
+          "batchSize": 500,
+          "pageSize": 10000,
+          "collectionMode": "FullSnapshot",
+          "pageOrderBy": "Timestamp asc"
+        },
+        {
+          "name": "DeviceTvmSecureConfigurationAssessmentKB",
+          "enabled": true,
+          "sourceType": "AdvancedHunting",
+          "query": "DeviceTvmSecureConfigurationAssessmentKB",
+          "destinationTable": "DeviceTvmSecureConfigurationAssessmentKB_CL",
+          "dcrStreamName": "Custom-DeviceTvmSecureConfigurationAssessmentKB",
+          "scheduleSetting": "Schedule_DeviceTvmSecureConfigurationAssessmentKB",
+          "batchSize": 500,
+          "pageSize": 10000,
+          "collectionMode": "FullSnapshot",
+          "pageOrderBy": "Timestamp asc"
+        },
+        {
+          "name": "DeviceTvmSoftwareEvidenceBeta",
+          "enabled": true,
+          "sourceType": "AdvancedHunting",
+          "query": "DeviceTvmSoftwareEvidenceBeta",
+          "destinationTable": "DeviceTvmSoftwareEvidenceBeta_CL",
+          "dcrStreamName": "Custom-DeviceTvmSoftwareEvidenceBeta",
+          "scheduleSetting": "Schedule_DeviceTvmSoftwareEvidenceBeta",
+          "batchSize": 500,
+          "pageSize": 10000,
+          "collectionMode": "FullSnapshot",
+          "pageOrderBy": "Timestamp asc"
+        },
+        {
+          "name": "DeviceTvmBrowserExtensions",
+          "enabled": true,
+          "sourceType": "AdvancedHunting",
+          "query": "DeviceTvmBrowserExtensions",
+          "destinationTable": "DeviceTvmBrowserExtensions_CL",
+          "dcrStreamName": "Custom-DeviceTvmBrowserExtensions",
+          "scheduleSetting": "Schedule_DeviceTvmBrowserExtensions",
+          "batchSize": 500,
+          "pageSize": 10000,
+          "collectionMode": "FullSnapshot",
+          "pageOrderBy": "Timestamp asc"
+        },
+        {
+          "name": "DeviceTvmBrowserExtensionsKB",
+          "enabled": true,
+          "sourceType": "AdvancedHunting",
+          "query": "DeviceTvmBrowserExtensionsKB",
+          "destinationTable": "DeviceTvmBrowserExtensionsKB_CL",
+          "dcrStreamName": "Custom-DeviceTvmBrowserExtensionsKB",
+          "scheduleSetting": "Schedule_DeviceTvmBrowserExtensionsKB",
+          "batchSize": 500,
+          "pageSize": 10000,
+          "collectionMode": "FullSnapshot",
+          "pageOrderBy": "Timestamp asc"
+        },
+        {
+          "name": "DeviceTvmCertificateInfo",
+          "enabled": true,
+          "sourceType": "AdvancedHunting",
+          "query": "DeviceTvmCertificateInfo",
+          "destinationTable": "DeviceTvmCertificateInfo_CL",
+          "dcrStreamName": "Custom-DeviceTvmCertificateInfo",
+          "scheduleSetting": "Schedule_DeviceTvmCertificateInfo",
+          "batchSize": 500,
+          "pageSize": 10000,
+          "collectionMode": "FullSnapshot",
+          "pageOrderBy": "Timestamp asc"
+        },
+        {
+          "name": "DeviceTvmHardwareFirmware",
+          "enabled": true,
+          "sourceType": "AdvancedHunting",
+          "query": "DeviceTvmHardwareFirmware",
+          "destinationTable": "DeviceTvmHardwareFirmware_CL",
+          "dcrStreamName": "Custom-DeviceTvmHardwareFirmware",
+          "scheduleSetting": "Schedule_DeviceTvmHardwareFirmware",
+          "batchSize": 500,
+          "pageSize": 10000,
+          "collectionMode": "FullSnapshot",
+          "pageOrderBy": "Timestamp asc"
+        },
+        {
+          "name": "DeviceTvmInfoGathering",
+          "enabled": true,
+          "sourceType": "AdvancedHunting",
+          "query": "DeviceTvmInfoGathering",
+          "destinationTable": "DeviceTvmInfoGathering_CL",
+          "dcrStreamName": "Custom-DeviceTvmInfoGathering",
+          "scheduleSetting": "Schedule_DeviceTvmInfoGathering",
+          "batchSize": 500,
+          "pageSize": 10000,
+          "collectionMode": "FullSnapshot",
+          "pageOrderBy": "Timestamp asc"
+        },
+        {
+          "name": "DeviceTvmInfoGatheringKB",
+          "enabled": true,
+          "sourceType": "AdvancedHunting",
+          "query": "DeviceTvmInfoGatheringKB",
+          "destinationTable": "DeviceTvmInfoGatheringKB_CL",
+          "dcrStreamName": "Custom-DeviceTvmInfoGatheringKB",
+          "scheduleSetting": "Schedule_DeviceTvmInfoGatheringKB",
+          "batchSize": 500,
+          "pageSize": 10000,
+          "collectionMode": "FullSnapshot",
+          "pageOrderBy": "Timestamp asc"
+        },
+        {
+          "name": "ApiSoftwareVulnerabilitiesByMachine",
+          "enabled": true,
+          "sourceType": "DefenderRestApi",
+          "endpoint": "/api/machines/SoftwareVulnerabilitiesByMachine",
+          "destinationTable": "ApiSoftwareVulnerabilitiesByMachine_CL",
+          "dcrStreamName": "Custom-ApiSoftwareVulnerabilitiesByMachine",
+          "scheduleSetting": "Schedule_ApiSoftwareVulnerabilitiesByMachine",
+          "batchSize": 500,
+          "pageSize": 10000,
+          "collectionMode": "FullSnapshot"
+        },
+        {
+          "name": "ApiMachines",
+          "enabled": false,
+          "sourceType": "DefenderRestApi",
+          "endpoint": "/api/machines",
+          "destinationTable": "ApiMachines_CL",
+          "dcrStreamName": "Custom-ApiMachines",
+          "scheduleSetting": "Schedule_ApiMachines",
+          "batchSize": 500,
+          "pageSize": 10000,
+          "collectionMode": "FullSnapshot"
+        },
+        {
+          "name": "ApiSoftwareInventoryByMachine",
+          "enabled": false,
+          "sourceType": "DefenderRestApi",
+          "endpoint": "/api/machines/SoftwareInventoryByMachine",
+          "destinationTable": "ApiSoftwareInventoryByMachine_CL",
+          "dcrStreamName": "Custom-ApiSoftwareInventoryByMachine",
+          "scheduleSetting": "Schedule_ApiSoftwareInventoryByMachine",
+          "batchSize": 500,
+          "pageSize": 10000,
+          "collectionMode": "FullSnapshot"
+        },
+        {
+          "name": "ApiNonCpeSoftwareInventory",
+          "enabled": false,
+          "sourceType": "DefenderRestApi",
+          "endpoint": "/api/SoftwareInventories/NonCpeSoftwareInventory",
+          "destinationTable": "ApiNonCpeSoftwareInventory_CL",
+          "dcrStreamName": "Custom-ApiNonCpeSoftwareInventory",
+          "scheduleSetting": "Schedule_ApiNonCpeSoftwareInventory",
+          "batchSize": 500,
+          "pageSize": 10000,
+          "collectionMode": "FullSnapshot"
+        },
+        {
+          "name": "ApiRecommendations",
+          "enabled": false,
+          "sourceType": "DefenderRestApi",
+          "endpoint": "/api/recommendations",
+          "destinationTable": "ApiRecommendations_CL",
+          "dcrStreamName": "Custom-ApiRecommendations",
+          "scheduleSetting": "Schedule_ApiRecommendations",
+          "batchSize": 500,
+          "pageSize": 10000,
+          "collectionMode": "FullSnapshot"
+        },
+        {
+          "name": "ApiSecureConfigurationAssessmentByMachine",
+          "enabled": false,
+          "sourceType": "DefenderRestApi",
+          "endpoint": "/api/machines/SecureConfigurationsAssessmentByMachine",
+          "destinationTable": "ApiSecureConfigurationAssessmentByMachine_CL",
+          "dcrStreamName": "Custom-ApiSecureConfigurationAssessmentByMachine",
+          "scheduleSetting": "Schedule_ApiSecureConfigurationAssessmentByMachine",
+          "batchSize": 500,
+          "pageSize": 10000,
+          "collectionMode": "FullSnapshot"
+        },
+        {
+          "name": "ApiVulnerabilitiesCatalog",
+          "enabled": false,
+          "sourceType": "DefenderRestApi",
+          "endpoint": "/api/vulnerabilities",
+          "destinationTable": "ApiVulnerabilitiesCatalog_CL",
+          "dcrStreamName": "Custom-ApiVulnerabilitiesCatalog",
+          "scheduleSetting": "Schedule_ApiVulnerabilitiesCatalog",
+          "batchSize": 500,
+          "pageSize": 10000,
+          "collectionMode": "FullSnapshot"
+        },
+        {
+          "name": "ApiBrowserExtensionsInventory",
+          "enabled": false,
+          "sourceType": "DefenderRestApi",
+          "endpoint": "/api/BrowserExtensionsInventories",
+          "destinationTable": "ApiBrowserExtensionsInventory_CL",
+          "dcrStreamName": "Custom-ApiBrowserExtensionsInventory",
+          "scheduleSetting": "Schedule_ApiBrowserExtensionsInventory",
+          "batchSize": 500,
+          "pageSize": 10000,
+          "collectionMode": "FullSnapshot"
+        },
+        {
+          "name": "ApiBrowserExtensionPermissions",
+          "enabled": false,
+          "sourceType": "DefenderRestApi",
+          "endpoint": "/api/BrowserExtensionsPermissions",
+          "destinationTable": "ApiBrowserExtensionPermissions_CL",
+          "dcrStreamName": "Custom-ApiBrowserExtensionPermissions",
+          "scheduleSetting": "Schedule_ApiBrowserExtensionPermissions",
+          "batchSize": 500,
+          "pageSize": 10000,
+          "collectionMode": "FullSnapshot"
+        },
+        {
+          "name": "ApiCertificateInventoryAssessment",
+          "enabled": false,
+          "sourceType": "DefenderRestApi",
+          "endpoint": "/api/CertificateInventories",
+          "destinationTable": "ApiCertificateInventoryAssessment_CL",
+          "dcrStreamName": "Custom-ApiCertificateInventoryAssessment",
+          "scheduleSetting": "Schedule_ApiCertificateInventoryAssessment",
+          "batchSize": 500,
+          "pageSize": 10000,
+          "collectionMode": "FullSnapshot"
+        },
+        {
+          "name": "ApiHardwareFirmwareAssessment",
+          "enabled": false,
+          "sourceType": "DefenderRestApi",
+          "endpoint": "/api/HardwareFirmwareAssessments",
+          "destinationTable": "ApiHardwareFirmwareAssessment_CL",
+          "dcrStreamName": "Custom-ApiHardwareFirmwareAssessment",
+          "scheduleSetting": "Schedule_ApiHardwareFirmwareAssessment",
+          "batchSize": 500,
+          "pageSize": 10000,
+          "collectionMode": "FullSnapshot"
+        },
+        {
+          "name": "NistCveCatalog",
+          "enabled": false,
+          "sourceType": "NistApi",
+          "endpoint": "https://services.nvd.nist.gov/rest/json/cves/2.0",
+          "destinationTable": "NistCveCatalog_CL",
+          "dcrStreamName": "Custom-NistCveCatalog",
+          "scheduleSetting": "Schedule_NistCveCatalog",
+          "batchSize": 250,
+          "pageSize": 2000,
+          "collectionMode": "FullSnapshot",
+          "requestDelayMs": 1200,
+          "transformMode": "cve_summary"
+        },
+        {
+          "name": "NistCpeConfigurations",
+          "enabled": false,
+          "sourceType": "NistApi",
+          "endpoint": "https://services.nvd.nist.gov/rest/json/cves/2.0",
+          "destinationTable": "NistCpeConfigurations_CL",
+          "dcrStreamName": "Custom-NistCpeConfigurations",
+          "scheduleSetting": "Schedule_NistCpeConfigurations",
+          "batchSize": 250,
+          "pageSize": 2000,
+          "collectionMode": "FullSnapshot",
+          "requestDelayMs": 1200,
+          "transformMode": "cpe_match"
+        }
+      ]
+    },
+    "datasetConfig": "[variables('$fxv#0')]",
+    "datasets": "[variables('datasetConfig').datasets]",
+    "scheduleDefaults": {
+      "Schedule_DeviceTvmSoftwareInventory": "0 0 1 * * *",
+      "Schedule_DeviceTvmSoftwareVulnerabilities": "0 10 1 * * *",
+      "Schedule_DeviceTvmSoftwareVulnerabilitiesKB": "0 20 1 * * *",
+      "Schedule_DeviceTvmSecureConfigurationAssessment": "0 30 1 * * *",
+      "Schedule_DeviceTvmSecureConfigurationAssessmentKB": "0 40 1 * * *",
+      "Schedule_DeviceTvmSoftwareEvidenceBeta": "0 50 1 * * *",
+      "Schedule_DeviceTvmBrowserExtensions": "0 0 2 * * *",
+      "Schedule_DeviceTvmBrowserExtensionsKB": "0 10 2 * * *",
+      "Schedule_DeviceTvmCertificateInfo": "0 20 2 * * *",
+      "Schedule_DeviceTvmHardwareFirmware": "0 30 2 * * *",
+      "Schedule_DeviceTvmInfoGathering": "0 40 2 * * *",
+      "Schedule_DeviceTvmInfoGatheringKB": "0 50 2 * * *",
+      "Schedule_ApiSoftwareVulnerabilitiesByMachine": "0 15 1 * * *",
+      "Schedule_ApiMachines": "0 0 3 * * *",
+      "Schedule_ApiSoftwareInventoryByMachine": "0 10 3 * * *",
+      "Schedule_ApiNonCpeSoftwareInventory": "0 20 3 * * *",
+      "Schedule_ApiRecommendations": "0 30 3 * * *",
+      "Schedule_ApiSecureConfigurationAssessmentByMachine": "0 40 3 * * *",
+      "Schedule_ApiVulnerabilitiesCatalog": "0 50 3 * * *",
+      "Schedule_ApiBrowserExtensionsInventory": "0 0 4 * * *",
+      "Schedule_ApiBrowserExtensionPermissions": "0 10 4 * * *",
+      "Schedule_ApiCertificateInventoryAssessment": "0 20 4 * * *",
+      "Schedule_ApiHardwareFirmwareAssessment": "0 30 4 * * *",
+      "Schedule_NistCveCatalog": "0 0 2 * * 0",
+      "Schedule_NistCpeConfigurations": "0 30 2 * * 0"
+    },
+    "locationName": "[if(empty(parameters('location')), resourceGroup().location, parameters('location'))]",
+    "planName": "[format('{0}-plan', parameters('namePrefix'))]",
+    "dceName": "[if(empty(parameters('dataCollectionEndpointName')), format('{0}-dce', parameters('namePrefix')), parameters('dataCollectionEndpointName'))]",
+    "dcrName": "[if(empty(parameters('dataCollectionRuleName')), format('{0}-dcr', parameters('namePrefix')), parameters('dataCollectionRuleName'))]",
+    "appInsightsName": "[format('{0}-appi', parameters('namePrefix'))]",
+    "logsEndpoint": "[format('https://{0}.{1}-1.ingest.monitor.azure.com', variables('dceName'), variables('locationName'))]",
+    "standardStreamColumns": [
+      {
+        "name": "TimeGenerated",
+        "type": "string"
+      },
+      {
+        "name": "SnapshotTime",
+        "type": "string"
+      },
+      {
+        "name": "RunId",
+        "type": "string"
+      },
+      {
+        "name": "DatasetName",
+        "type": "string"
+      },
+      {
+        "name": "SourceType",
+        "type": "string"
+      },
+      {
+        "name": "SourceName",
+        "type": "string"
+      },
+      {
+        "name": "DestinationTable",
+        "type": "string"
+      },
+      {
+        "name": "CollectionMode",
+        "type": "string"
+      },
+      {
+        "name": "CollectorVersion",
+        "type": "string"
+      },
+      {
+        "name": "PayloadJson",
+        "type": "string"
+      }
+    ],
+    "streamDeclarations": "[reduce(variables('datasets'), createObject(), lambda('state', 'dataset', union(lambdaVariables('state'), createObject(format('{0}', lambdaVariables('dataset').dcrStreamName), createObject('columns', variables('standardStreamColumns'))))))]"
+  },
+  "resources": [
+    {
+      "type": "Microsoft.Insights/components",
+      "apiVersion": "2020-02-02",
+      "name": "[variables('appInsightsName')]",
+      "location": "[variables('locationName')]",
+      "kind": "web",
+      "properties": {
+        "Application_Type": "web",
+        "WorkspaceResourceId": "[extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, parameters('workspaceResourceGroupName')), 'Microsoft.OperationalInsights/workspaces', parameters('workspaceName'))]"
+      }
+    },
+    {
+      "type": "Microsoft.Storage/storageAccounts",
+      "apiVersion": "2023-05-01",
+      "name": "[format('stg{0}', uniqueString(resourceGroup().id, parameters('functionAppName')))]",
+      "location": "[variables('locationName')]",
+      "sku": {
+        "name": "Standard_LRS"
+      },
+      "kind": "StorageV2",
+      "properties": {
+        "accessTier": "Hot",
+        "allowBlobPublicAccess": false,
+        "minimumTlsVersion": "TLS1_2",
+        "supportsHttpsTrafficOnly": true
+      }
+    },
+    {
+      "type": "Microsoft.Web/serverfarms",
+      "apiVersion": "2023-12-01",
+      "name": "[variables('planName')]",
+      "location": "[variables('locationName')]",
+      "sku": {
+        "name": "Y1",
+        "tier": "Dynamic"
+      },
+      "kind": "functionapp",
+      "properties": {
+        "reserved": true
+      }
+    },
+    {
+      "type": "Microsoft.Insights/dataCollectionEndpoints",
+      "apiVersion": "2023-03-11",
+      "name": "[variables('dceName')]",
+      "location": "[variables('locationName')]",
+      "kind": "Linux",
+      "properties": {
+        "networkAcls": {
+          "publicNetworkAccess": "Enabled"
+        }
+      }
+    },
+    {
+      "type": "Microsoft.Insights/dataCollectionRules",
+      "apiVersion": "2023-03-11",
+      "name": "[variables('dcrName')]",
+      "location": "[variables('locationName')]",
+      "kind": "Direct",
+      "properties": {
+        "copy": [
+          {
+            "name": "dataFlows",
+            "count": "[length(variables('datasets'))]",
+            "input": {
+              "streams": [
+                "[variables('datasets')[copyIndex('dataFlows')].dcrStreamName]"
+              ],
+              "destinations": [
+                "sentinelWorkspace"
+              ],
+              "outputStream": "[format('Custom-{0}', variables('datasets')[copyIndex('dataFlows')].destinationTable)]",
+              "transformKql": "source | project TimeGenerated=todatetime(TimeGenerated), SnapshotTime=todatetime(SnapshotTime), RunId=tostring(RunId), DatasetName=tostring(DatasetName), SourceType=tostring(SourceType), SourceName=tostring(SourceName), DestinationTable=tostring(DestinationTable), CollectionMode=tostring(CollectionMode), CollectorVersion=tostring(CollectorVersion), PayloadJson=tostring(PayloadJson)"
+            }
+          }
+        ],
+        "dataCollectionEndpointId": "[resourceId('Microsoft.Insights/dataCollectionEndpoints', variables('dceName'))]",
+        "streamDeclarations": "[variables('streamDeclarations')]",
+        "destinations": {
+          "logAnalytics": [
+            {
+              "workspaceResourceId": "[extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, parameters('workspaceResourceGroupName')), 'Microsoft.OperationalInsights/workspaces', parameters('workspaceName'))]",
+              "name": "sentinelWorkspace"
+            }
+          ]
+        }
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Insights/dataCollectionEndpoints', variables('dceName'))]",
+        "[extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, parameters('workspaceResourceGroupName')), 'Microsoft.Resources/deployments', 'workspaceTables')]"
+      ]
+    },
+    {
+      "type": "Microsoft.Web/sites",
+      "apiVersion": "2023-12-01",
+      "name": "[parameters('functionAppName')]",
+      "location": "[variables('locationName')]",
+      "kind": "functionapp,linux",
+      "identity": {
+        "type": "SystemAssigned"
+      },
+      "properties": {
+        "serverFarmId": "[resourceId('Microsoft.Web/serverfarms', variables('planName'))]",
+        "httpsOnly": true,
+        "reserved": true,
+        "siteConfig": {
+          "linuxFxVersion": "Python|3.11",
+          "minTlsVersion": "1.2",
+          "ftpsState": "Disabled",
+          "appSettings": "[concat(concat(createArray(createObject('name', 'FUNCTIONS_WORKER_RUNTIME', 'value', 'python'), createObject('name', 'FUNCTIONS_EXTENSION_VERSION', 'value', '~4'), createObject('name', 'AzureWebJobsFeatureFlags', 'value', 'EnableWorkerIndexing'), createObject('name', 'WEBSITE_RUN_FROM_PACKAGE', 'value', '1'), createObject('name', 'SCM_DO_BUILD_DURING_DEPLOYMENT', 'value', 'true'), createObject('name', 'PYTHON_ISOLATE_WORKER_DEPENDENCIES', 'value', '1'), createObject('name', 'DatasetConfigPath', 'value', 'datasets.json'), createObject('name', 'CollectorVersion', 'value', string(variables('datasetConfig').collectorVersion)), createObject('name', 'LogsIngestion__Endpoint', 'value', variables('logsEndpoint')), createObject('name', 'LogsIngestion__RuleId', 'value', reference(resourceId('Microsoft.Insights/dataCollectionRules', variables('dcrName')), '2023-03-11').immutableId), createObject('name', 'ManagedIdentity__ClientId', 'value', ''), createObject('name', 'Nist__ApiKey', 'value', '')), variables('datasetToggleSettings'), variables('scheduleAppSettings')), createArray(createObject('name', 'APPLICATIONINSIGHTS_CONNECTION_STRING', 'value', reference(resourceId('Microsoft.Insights/components', variables('appInsightsName')), '2020-02-02').ConnectionString), createObject('name', 'AzureWebJobsStorage', 'value', format('DefaultEndpointsProtocol=https;AccountName={0};EndpointSuffix={1};AccountKey={2}', format('stg{0}', uniqueString(resourceGroup().id, parameters('functionAppName'))), environment().suffixes.storage, listKeys(resourceId('Microsoft.Storage/storageAccounts', format('stg{0}', uniqueString(resourceGroup().id, parameters('functionAppName')))), '2023-05-01').keys[0].value))))]"
+        }
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Insights/components', variables('appInsightsName'))]",
+        "[resourceId('Microsoft.Insights/dataCollectionRules', variables('dcrName'))]",
+        "[resourceId('Microsoft.Web/serverfarms', variables('planName'))]",
+        "[resourceId('Microsoft.Storage/storageAccounts', format('stg{0}', uniqueString(resourceGroup().id, parameters('functionAppName'))))]"
+      ]
+    },
+    {
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2025-04-01",
+      "name": "workspaceTables",
+      "resourceGroup": "[parameters('workspaceResourceGroupName')]",
+      "properties": {
+        "expressionEvaluationOptions": {
+          "scope": "inner"
+        },
+        "mode": "Incremental",
+        "parameters": {
+          "workspaceName": {
+            "value": "[parameters('workspaceName')]"
+          },
+          "datasets": {
+            "value": "[variables('datasets')]"
+          }
+        },
+        "template": {
+          "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+          "contentVersion": "1.0.0.0",
+          "metadata": {
+            "_generator": {
+              "name": "bicep",
+              "version": "0.38.33.27573",
+              "templateHash": "2726098868424983581"
+            }
+          },
+          "parameters": {
+            "workspaceName": {
+              "type": "string",
+              "metadata": {
+                "description": "Name of the existing Log Analytics workspace used by Microsoft Sentinel."
+              }
+            },
+            "datasets": {
+              "type": "array",
+              "metadata": {
+                "description": "Dataset definitions loaded from the shared dataset catalog."
+              }
+            }
+          },
+          "resources": [
+            {
+              "copy": {
+                "name": "customTables",
+                "count": "[length(parameters('datasets'))]"
+              },
+              "type": "Microsoft.OperationalInsights/workspaces/tables",
+              "apiVersion": "2023-09-01",
+              "name": "[format('{0}/{1}', parameters('workspaceName'), parameters('datasets')[copyIndex()].destinationTable)]",
+              "properties": {
+                "plan": "Analytics",
+                "schema": {
+                  "name": "[parameters('datasets')[copyIndex()].destinationTable]",
+                  "columns": [
+                    {
+                      "name": "TimeGenerated",
+                      "type": "dateTime"
+                    },
+                    {
+                      "name": "SnapshotTime",
+                      "type": "dateTime"
+                    },
+                    {
+                      "name": "RunId",
+                      "type": "string"
+                    },
+                    {
+                      "name": "DatasetName",
+                      "type": "string"
+                    },
+                    {
+                      "name": "SourceType",
+                      "type": "string"
+                    },
+                    {
+                      "name": "SourceName",
+                      "type": "string"
+                    },
+                    {
+                      "name": "DestinationTable",
+                      "type": "string"
+                    },
+                    {
+                      "name": "CollectionMode",
+                      "type": "string"
+                    },
+                    {
+                      "name": "CollectorVersion",
+                      "type": "string"
+                    },
+                    {
+                      "name": "PayloadJson",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "retentionInDays": 30,
+                "totalRetentionInDays": 30
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "outputs": {
+    "functionAppName": {
+      "type": "string",
+      "value": "[parameters('functionAppName')]"
+    },
+    "functionPrincipalId": {
+      "type": "string",
+      "value": "[reference(resourceId('Microsoft.Web/sites', parameters('functionAppName')), '2023-12-01', 'full').identity.principalId]"
+    },
+    "dataCollectionEndpointResourceId": {
+      "type": "string",
+      "value": "[resourceId('Microsoft.Insights/dataCollectionEndpoints', variables('dceName'))]"
+    },
+    "dataCollectionRuleImmutableId": {
+      "type": "string",
+      "value": "[reference(resourceId('Microsoft.Insights/dataCollectionRules', variables('dcrName')), '2023-03-11').immutableId]"
+    },
+    "logsIngestionEndpoint": {
+      "type": "string",
+      "value": "[variables('logsEndpoint')]"
+    },
+    "workspaceId": {
+      "type": "string",
+      "value": "[extensionResourceId(format('/subscriptions/{0}/resourceGroups/{1}', subscription().subscriptionId, parameters('workspaceResourceGroupName')), 'Microsoft.OperationalInsights/workspaces', parameters('workspaceName'))]"
+    }
+  }
+}

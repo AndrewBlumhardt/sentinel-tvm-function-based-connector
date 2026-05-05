@@ -1,0 +1,11 @@
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+*.user
+*.swp
+.python_packages/
+.pytest_cache/
+.mypy_cache/
+.vscode/
+local.settings.json
