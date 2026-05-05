@@ -1,11 +1,9 @@
 # Deployment Notes
 
-# Deployment Notes
-
 ## Deployment workflow
 
 1. **Deploy infrastructure** using the provided Bicep template.
-2. **Grant API permissions** to the managed identity (see [permissions.md](./permissions.md)).
+2. **Grant API permissions** to the managed identity (see the "Managed identity permission setup (CLI)" section in `README.md`).
 3. **Deploy the Function App code** using your preferred CI/CD tool or `func azure functionapp publish`.
 4. **Enable datasets** by setting app settings or editing the `datasets.json` configuration.
 5. **Monitor execution** using Application Insights and the Function App's timer trigger logs.
@@ -14,13 +12,13 @@
 
 The Function App expects these application settings:
 
-+- `DatasetConfigPath` — path to the dataset registry (default: `datasets.json`).
-+- `LogsIngestion__Endpoint` — the DCE ingestion endpoint (e.g., `https://my-dce-name.region.ingest.monitor.azure.com`).
-+- `LogsIngestion__RuleId` — the DCR immutable ID.
-+- `ManagedIdentity__ClientId` — only required when using a user-assigned identity instead of the default system-assigned identity.
-+- one `Schedule_*` setting per timer-triggered dataset — CRON expression controlling the collection schedule.
-+
-+These are set automatically by the Bicep template except for custom overrides.
+- `DatasetConfigPath` — path to the dataset registry (default: `datasets.json`).
+- `LogsIngestion__Endpoint` — the DCE ingestion endpoint (e.g., `https://my-dce-name.region.ingest.monitor.azure.com`).
+- `LogsIngestion__RuleId` — the DCR immutable ID.
+- `ManagedIdentity__ClientId` — only required when using a user-assigned identity instead of the default system-assigned identity.
+- one `Schedule_*` setting per timer-triggered dataset — CRON expression controlling the collection schedule.
+
+These are set automatically by the Bicep template except for custom overrides.
 
 ## Managed identity permissions
 
@@ -39,7 +37,7 @@ The managed identity requires:
 2. **Azure Monitor Logs Ingestion permissions** to upload records via the Data Collection Rule:
 	- `Monitoring Metrics Publisher` role on the DCR (granted automatically by Bicep).
 
-See [permissions.md](./permissions.md) for step-by-step CLI commands to grant these permissions.
+See `README.md` for step-by-step CLI commands to grant these permissions.
 
 
 ## DCR and table design
