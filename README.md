@@ -92,6 +92,7 @@ The Function App is designed around a single managed identity. That identity mus
 - `infra/main.bicep`: Function App, Storage, Application Insights, DCE, DCR, and custom table deployment.
 - `deploy.ps1`: wrapper for group deployment with workspace parameters.
 - `docs/deployment.md`: deployment and DCR/DCE notes.
+- `docs/permissions.md`: system-assigned managed identity setup and Microsoft Defender API permission grants.
 - `docs/source-comparison.md`: guidance on comparing Advanced Hunting with REST datasets.
 
 ## Validation status
@@ -101,9 +102,21 @@ The scaffold compiles successfully with `python -m compileall .`.
 ## Azure deployment
 
 1. Ensure you already have a Log Analytics workspace that backs your Microsoft Sentinel deployment.
-2. Review `infra/main.parameters.sample.json` and `infra/main.bicep`.
-3. Run `./deploy.ps1 -ResourceGroupName <rg> -WorkspaceName <workspace> -WorkspaceResourceGroupName <workspace-rg>`.
-4. Deploy the Function App code package after the infrastructure deployment completes.
-5. Grant the Function App managed identity the Defender API permissions required for the datasets you enable.
+2. Deploy the infrastructure with `./deploy.ps1 -ResourceGroupName <rg> -WorkspaceName <workspace> -WorkspaceResourceGroupName <workspace-rg>`.
+3. Grant the Function App's managed identity the required Microsoft Defender API permissions (see [docs/permissions.md](docs/permissions.md) for step-by-step CLI commands).
+4. Deploy the Function App code package using `func azure functionapp publish <function-app-name>` or your CI/CD pipeline.
+5. Enable and configure datasets in the Function App's application settings or `datasets.json`.
+
+## Permission model
+
+The connector uses a **system-assigned managed identity** for all authentication instead of connection strings or API keys. This approach:
+
+- **Eliminates secrets**: Credentials are issued and rotated automatically by Azure.
+- **Improves auditability**: All API calls are attributed to the managed identity.
+- **Reduces attack surface**: No credentials to leak in code or configuration.
+- **Follows least-privilege principles**: Permissions are scoped to specific APIs and operations.
+
+We do not use Entra directory roles (like "Global Reader") because they grant broad permissions across all cloud services. Instead, we assign specific application-level permissions to the Microsoft Defender API service principal, which is more granular and aligned with the principle of least privilege.
+
 
 
