@@ -34,7 +34,6 @@ var planName = '${namePrefix}-plan'
 var dceName = empty(dataCollectionEndpointName) ? '${namePrefix}-dce' : dataCollectionEndpointName
 var dcrName = empty(dataCollectionRuleName) ? '${namePrefix}-dcr' : dataCollectionRuleName
 var appInsightsName = '${namePrefix}-appi'
-var logsEndpoint = 'https://${dceName}.${locationName}-1.ingest.monitor.azure.com'
 var standardStreamColumns = [
   {
     name: 'TimeGenerated'
@@ -121,7 +120,7 @@ var commonAppSettings = [
   }
   {
     name: 'LogsIngestion__Endpoint'
-    value: logsEndpoint
+    value: dataCollectionEndpoint.properties.logsIngestion.endpoint
   }
   {
     name: 'LogsIngestion__RuleId'
@@ -290,5 +289,5 @@ output functionAppName string = functionApp.name
 output functionPrincipalId string = functionApp.identity.principalId
 output dataCollectionEndpointResourceId string = dataCollectionEndpoint.id
 output dataCollectionRuleImmutableId string = dataCollectionRule.properties.immutableId
-output logsIngestionEndpoint string = logsEndpoint
+output logsIngestionEndpoint string = dataCollectionEndpoint.properties.logsIngestion.endpoint
 output workspaceId string = workspace.id

@@ -8,6 +8,33 @@
 4. **Enable datasets** by setting app settings or editing the `datasets.json` configuration.
 5. **Monitor execution** using Application Insights and the Function App's timer trigger logs.
 
+## Azure GCC High usage
+
+The deployment script supports Azure Government cloud selection and defaults to `AzureUSGovernment`.
+
+Example:
+
+```powershell
+./deploy.ps1 `
+	-ResourceGroupName <rg> `
+	-WorkspaceName <workspace> `
+	-WorkspaceResourceGroupName <workspace-rg> `
+	-SubscriptionId <subscription-id>
+```
+
+If you need public Azure instead, pass:
+
+```powershell
+-CloudName AzureCloud
+```
+
+The script will:
+
+- set the active cloud context with `az cloud set`
+- ensure an authenticated Azure CLI session
+- optionally set the active subscription
+- run `az deployment group create` with the required Bicep parameters
+
 ## Required configuration
 
 The Function App expects these application settings:

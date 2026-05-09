@@ -133,10 +133,41 @@ The scaffold compiles successfully with `python -m compileall .`.
 ## Azure deployment
 
 1. Ensure you already have a Log Analytics workspace that backs your Microsoft Sentinel deployment.
-2. Deploy the infrastructure with `./deploy.ps1 -ResourceGroupName <rg> -WorkspaceName <workspace> -WorkspaceResourceGroupName <workspace-rg>`.
+2. Deploy the infrastructure with `./deploy.ps1`.
 3. Grant the Function App's managed identity the required Microsoft Defender API permissions using the CLI steps below.
 4. Deploy the Function App code package using `func azure functionapp publish <function-app-name>` or your CI/CD pipeline.
 5. Enable and configure datasets in the Function App's application settings or `datasets.json`.
+
+### Deployment script examples
+
+For Azure GCC High (Azure Government), the script defaults to `AzureUSGovernment` cloud:
+
+```powershell
+./deploy.ps1 `
+	-ResourceGroupName <rg> `
+	-WorkspaceName <workspace> `
+	-WorkspaceResourceGroupName <workspace-rg> `
+	-SubscriptionId <subscription-id>
+```
+
+For public Azure, set the cloud explicitly:
+
+```powershell
+./deploy.ps1 `
+	-CloudName AzureCloud `
+	-ResourceGroupName <rg> `
+	-WorkspaceName <workspace> `
+	-WorkspaceResourceGroupName <workspace-rg> `
+	-SubscriptionId <subscription-id>
+```
+
+Optional script parameters:
+
+- `-TenantId`: tenant override for login.
+- `-Location`: deployment location override.
+- `-NamePrefix`: resource naming prefix.
+- `-FunctionAppName`: explicit Function App name.
+- `-SkipLogin`: skip `az login` if already authenticated.
 
 ## Permission model
 
