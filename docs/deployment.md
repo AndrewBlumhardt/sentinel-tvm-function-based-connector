@@ -10,7 +10,7 @@
 
 ## Azure GCC High usage
 
-The deployment script supports Azure Government cloud selection and defaults to `AzureUSGovernment`.
+The deployment script defaults to commercial Azure (`AzureCloud`) and supports Azure Government (`AzureUSGovernment`) when requested.
 
 Example:
 
@@ -22,10 +22,10 @@ Example:
 	-SubscriptionId <subscription-id>
 ```
 
-If you need public Azure instead, pass:
+For GCC High, pass:
 
 ```powershell
--CloudName AzureCloud
+-CloudName AzureUSGovernment
 ```
 
 The script will:

@@ -12,7 +12,7 @@ param(
     [string]$FunctionAppName = "sentinel-tvm-func",
 
     [ValidateSet("AzureUSGovernment", "AzureCloud")]
-    [string]$CloudName = "AzureUSGovernment",
+    [string]$CloudName = "AzureCloud",
 
     [string]$SubscriptionId = "",
     [string]$TenantId = "",

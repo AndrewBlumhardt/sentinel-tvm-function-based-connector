@@ -26,8 +26,8 @@ var scheduleDefaults = {
   Schedule_ApiBrowserExtensionPermissions: '0 10 4 * * *'
   Schedule_ApiCertificateInventoryAssessment: '0 20 4 * * *'
   Schedule_ApiHardwareFirmwareAssessment: '0 30 4 * * *'
-  Schedule_NistCveCatalog: '0 0 2 * * 0'
-  Schedule_NistCpeConfigurations: '0 30 2 * * 0'
+  Schedule_NistCveCatalog: '0 0 5 * * *'
+  Schedule_NistCpeConfigurations: '0 30 5 * * *'
 }
 var locationName = empty(location) ? resourceGroup().location : location
 var planName = '${namePrefix}-plan'
