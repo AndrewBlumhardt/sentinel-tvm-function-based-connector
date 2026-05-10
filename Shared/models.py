@@ -15,6 +15,7 @@ class DatasetConfig:
     page_size: int
     collection_mode: str
     dcr_stream_name: str | None = None
+    dcr_rule_id: str | None = None
     query: str | None = None
     endpoint: str | None = None
     page_order_by: str | None = None

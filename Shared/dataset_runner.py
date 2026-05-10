@@ -36,8 +36,15 @@ class DatasetRunner:
             self._logger.info("Dataset %s is disabled; skipping timer run.", dataset.name)
             return {"dataset": dataset.name, "ingested": 0, "pages": 0}
 
-        if not self._app_settings.logs_ingestion_endpoint or not self._app_settings.logs_ingestion_rule_id:
-            raise ValueError("Logs ingestion settings are required before dataset execution.")
+        if not self._app_settings.logs_ingestion_endpoint:
+            raise ValueError("Logs ingestion endpoint is required before dataset execution.")
+
+        rule_id = dataset.dcr_rule_id or self._app_settings.logs_ingestion_rule_id
+        if not rule_id:
+            raise ValueError(
+                f"No DCR rule ID configured for dataset '{dataset.name}'. "
+                "Set Dataset__<DatasetName>__dcrRuleId or LogsIngestion__RuleId."
+            )
 
         snapshot_context = create_snapshot_context()
         metadata = {
@@ -56,7 +63,7 @@ class DatasetRunner:
             transformed = (self._transform_record(dataset, row, metadata) for row in page)
             for batch in iter_batches(transformed, dataset.batch_size):
                 self._ingestion_client.upload(
-                    rule_id=self._app_settings.logs_ingestion_rule_id,
+                    rule_id=rule_id,
                     stream_name=dataset.stream_name,
                     records=batch,
                 )

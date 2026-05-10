@@ -43,6 +43,11 @@ if (-not (Test-Path $templatePath)) {
     throw "Template file not found at $templatePath"
 }
 
+$datasetConfigPath = Join-Path $PSScriptRoot "datasets.json"
+if (-not (Test-Path $datasetConfigPath)) {
+    throw "Dataset config file not found at $datasetConfigPath"
+}
+
 if ([string]::IsNullOrWhiteSpace($WorkspaceResourceGroupName)) {
     $WorkspaceResourceGroupName = $ResourceGroupName
 }
@@ -87,6 +92,7 @@ $deploymentArgs = @(
     "--resource-group", $ResourceGroupName,
     "--name", $deploymentName,
     "--template-file", $templatePath,
+    "--output", "json",
     "--parameters",
     "namePrefix=$NamePrefix",
     "functionAppName=$FunctionAppName",
@@ -99,6 +105,42 @@ if (-not [string]::IsNullOrWhiteSpace($Location)) {
 }
 
 Write-Host "Starting deployment '$deploymentName' in cloud '$CloudName'..."
-Invoke-AzCli -Args $deploymentArgs
+$deploymentResultRaw = Invoke-AzCli -Args $deploymentArgs
+$deploymentResult = $deploymentResultRaw | ConvertFrom-Json
+
+$ruleIds = @()
+if ($deploymentResult.properties.outputs.dataCollectionRuleImmutableIds.value) {
+    $ruleIds = @($deploymentResult.properties.outputs.dataCollectionRuleImmutableIds.value)
+}
+elseif ($deploymentResult.properties.outputs.dataCollectionRuleImmutableId.value) {
+    $ruleIds = @($deploymentResult.properties.outputs.dataCollectionRuleImmutableId.value)
+}
+
+if ($ruleIds.Count -eq 0) {
+    throw "Deployment did not return Data Collection Rule immutable IDs."
+}
+
+$datasets = (Get-Content -Path $datasetConfigPath -Raw | ConvertFrom-Json).datasets
+$maxDataFlowsPerRule = 10
+
+$datasetRuleSettings = @()
+for ($i = 0; $i -lt $datasets.Count; $i++) {
+    $dataset = $datasets[$i]
+    $ruleIndex = [int][Math]::Floor($i / $maxDataFlowsPerRule)
+    if ($ruleIndex -ge $ruleIds.Count) {
+        throw "Calculated DCR index $ruleIndex for dataset '$($dataset.name)' exceeds available DCR count $($ruleIds.Count)."
+    }
+
+    $datasetRuleSettings += "Dataset__$($dataset.name)__dcrRuleId=$($ruleIds[$ruleIndex])"
+}
+
+Write-Host "Applying per-dataset DCR rule ID app settings to Function App '$FunctionAppName'..."
+$appSettingsArgs = @(
+    "functionapp", "config", "appsettings", "set",
+    "--name", $FunctionAppName,
+    "--resource-group", $ResourceGroupName,
+    "--settings"
+) + $datasetRuleSettings
+Invoke-AzCli -Args $appSettingsArgs | Out-Null
 
 Write-Host "Deployment completed successfully."

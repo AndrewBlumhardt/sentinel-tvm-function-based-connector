@@ -34,6 +34,13 @@ The script will:
 - ensure an authenticated Azure CLI session
 - optionally set the active subscription
 - run `az deployment group create` with the required Bicep parameters
+- automatically map each dataset to a DCR immutable ID using `Dataset__<DatasetName>__dcrRuleId` app settings
+
+Why this extra mapping exists:
+
+- Azure Monitor DCR has a hard limit of 10 `dataFlows` per DCR.
+- This connector defines more datasets than 10, so deployment creates multiple DCRs.
+- The Function App needs a per-dataset DCR rule ID to route each upload request correctly.
 
 ## Required configuration
 

@@ -41,6 +41,7 @@ class ConfigLoader:
                     endpoint=self._get_text_override(name, "endpoint", item.get("endpoint")),
                     destination_table=self._get_text_override(name, "destinationTable", item["destinationTable"]),
                     dcr_stream_name=self._get_text_override(name, "dcrStreamName", item.get("dcrStreamName")),
+                    dcr_rule_id=self._get_text_override(name, "dcrRuleId", item.get("dcrRuleId")),
                     schedule_setting=self._get_text_override(name, "scheduleSetting", item["scheduleSetting"]),
                     batch_size=batch_size,
                     page_size=page_size,

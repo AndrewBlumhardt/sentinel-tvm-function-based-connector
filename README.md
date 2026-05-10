@@ -169,6 +169,21 @@ Optional script parameters:
 - `-FunctionAppName`: explicit Function App name.
 - `-SkipLogin`: skip `az login` if already authenticated.
 
+Important: Azure Monitor DCR enforces a maximum of 10 `dataFlows` per DCR. This repository has more datasets than that, so the deployment automatically partitions datasets across multiple DCR resources and then applies `Dataset__<DatasetName>__dcrRuleId` app settings on the Function App. This routing step is handled by `deploy.ps1` after infrastructure deployment.
+
+### Example deployed resources
+
+![Example deployed resources in Azure portal](images/resources.png)
+
+What you are seeing in that resource group:
+
+- `sentinel-tvm-appi` (Application Insights): telemetry destination for Function App logs, traces, failures, and performance data.
+- `sentinel-tvm-dce` (Data Collection Endpoint): ingestion endpoint used by Azure Monitor Logs Ingestion API.
+- `sentinel-tvm-dcr-01`, `sentinel-tvm-dcr-02`, `sentinel-tvm-dcr-03` (Data Collection Rules): rules that map incoming records to custom Log Analytics tables. Multiple rules are created because a single DCR supports up to 10 `dataFlows`.
+- `sentinel-tvm-func` (Function App): runtime host for timer-triggered dataset collectors.
+- `sentinel-tvm-plan` (App Service plan): compute plan backing the Function App.
+- `stgt6iif5iv4lqm4` (Storage account): required Azure Functions storage for runtime/state/host operations.
+
 ## Permission model
 
 The connector uses a **system-assigned managed identity** for all authentication instead of connection strings or API keys. This approach:

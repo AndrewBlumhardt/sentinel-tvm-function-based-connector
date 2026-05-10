@@ -34,6 +34,9 @@ var planName = '${namePrefix}-plan'
 var dceName = empty(dataCollectionEndpointName) ? '${namePrefix}-dce' : dataCollectionEndpointName
 var dcrName = empty(dataCollectionRuleName) ? '${namePrefix}-dcr' : dataCollectionRuleName
 var appInsightsName = '${namePrefix}-appi'
+var maxDataFlowsPerRule = 10
+var dcrChunkCount = int((length(datasets) + maxDataFlowsPerRule - 1) / maxDataFlowsPerRule)
+var dcrBatches = [for i in range(0, dcrChunkCount): take(skip(datasets, i * maxDataFlowsPerRule), maxDataFlowsPerRule)]
 var standardStreamColumns = [
   {
     name: 'TimeGenerated'
@@ -76,11 +79,6 @@ var standardStreamColumns = [
     type: 'string'
   }
 ]
-var streamDeclarations = reduce(datasets, {}, (state, dataset) => union(state, {
-  '${dataset.dcrStreamName}': {
-    columns: standardStreamColumns
-  }
-}))
 var scheduleAppSettings = [for dataset in datasets: {
   name: dataset.scheduleSetting
   value: scheduleDefaults[dataset.scheduleSetting] ?? '0 0 1 * * *'
@@ -124,7 +122,7 @@ var commonAppSettings = [
   }
   {
     name: 'LogsIngestion__RuleId'
-    value: dataCollectionRule.properties.immutableId
+    value: length(datasets) > 0 ? dataCollectionRules[0].properties.immutableId : ''
   }
   {
     name: 'ManagedIdentity__ClientId'
@@ -225,13 +223,17 @@ module workspaceTables './modules/workspaceTables.bicep' = {
   }
 }
 
-resource dataCollectionRule 'Microsoft.Insights/dataCollectionRules@2023-03-11' = {
-  name: dcrName
+resource dataCollectionRules 'Microsoft.Insights/dataCollectionRules@2023-03-11' = [for (datasetBatch, batchIndex) in dcrBatches: {
+  name: '${dcrName}-${padLeft(string(batchIndex + 1), 2, '0')}'
   location: locationName
   kind: 'Direct'
   properties: {
     dataCollectionEndpointId: dataCollectionEndpoint.id
-    streamDeclarations: streamDeclarations
+    streamDeclarations: reduce(datasetBatch, {}, (state, dataset) => union(state, {
+      '${dataset.dcrStreamName}': {
+        columns: standardStreamColumns
+      }
+    }))
     destinations: {
       logAnalytics: [
         {
@@ -240,7 +242,7 @@ resource dataCollectionRule 'Microsoft.Insights/dataCollectionRules@2023-03-11' 
         }
       ]
     }
-    dataFlows: [for dataset in datasets: {
+    dataFlows: [for dataset in datasetBatch: {
       streams: [
         dataset.dcrStreamName
       ]
@@ -254,7 +256,7 @@ resource dataCollectionRule 'Microsoft.Insights/dataCollectionRules@2023-03-11' 
   dependsOn: [
     workspaceTables
   ]
-}
+}]
 
 resource functionApp 'Microsoft.Web/sites@2023-12-01' = {
   name: functionAppName
@@ -288,6 +290,7 @@ resource functionApp 'Microsoft.Web/sites@2023-12-01' = {
 output functionAppName string = functionApp.name
 output functionPrincipalId string = functionApp.identity.principalId
 output dataCollectionEndpointResourceId string = dataCollectionEndpoint.id
-output dataCollectionRuleImmutableId string = dataCollectionRule.properties.immutableId
+output dataCollectionRuleImmutableId string = length(datasets) > 0 ? dataCollectionRules[0].properties.immutableId : ''
+output dataCollectionRuleImmutableIds array = [for i in range(0, length(datasets) == 0 ? 0 : dcrChunkCount): dataCollectionRules[i].properties.immutableId]
 output logsIngestionEndpoint string = dataCollectionEndpoint.properties.logsIngestion.endpoint
 output workspaceId string = workspace.id
