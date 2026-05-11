@@ -292,5 +292,7 @@ output functionPrincipalId string = functionApp.identity.principalId
 output dataCollectionEndpointResourceId string = dataCollectionEndpoint.id
 output dataCollectionRuleImmutableId string = length(datasets) > 0 ? dataCollectionRules[0].properties.immutableId : ''
 output dataCollectionRuleImmutableIds array = [for i in range(0, length(datasets) == 0 ? 0 : dcrChunkCount): dataCollectionRules[i].properties.immutableId]
+output dataCollectionRuleResourceId string = length(datasets) > 0 ? dataCollectionRules[0].id : ''
+output dataCollectionRuleResourceIds array = [for i in range(0, length(datasets) == 0 ? 0 : dcrChunkCount): dataCollectionRules[i].id]
 output logsIngestionEndpoint string = dataCollectionEndpoint.properties.logsIngestion.endpoint
 output workspaceId string = workspace.id

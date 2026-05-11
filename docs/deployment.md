@@ -10,7 +10,8 @@
 
 ## Azure GCC High usage
 
-The deployment script defaults to commercial Azure (`AzureCloud`) and supports Azure Government (`AzureUSGovernment`) when requested.
+The deployment script supports both commercial Azure (`AzureCloud`) and Azure Government (`AzureUSGovernment`).
+If you omit `-CloudName`, it uses your current `az cloud` context and does not switch clouds.
 
 Example:
 
@@ -30,11 +31,24 @@ For GCC High, pass:
 
 The script will:
 
-- set the active cloud context with `az cloud set`
+- set the active cloud context with `az cloud set` only when `-CloudName` is explicitly provided
 - ensure an authenticated Azure CLI session
 - optionally set the active subscription
 - run `az deployment group create` with the required Bicep parameters
 - automatically map each dataset to a DCR immutable ID using `Dataset__<DatasetName>__dcrRuleId` app settings
+
+## Required operator permissions
+
+Deployment (`deploy.ps1`) requires:
+
+- `Contributor` on the deployment resource group
+- `Contributor` (or equivalent table-write permissions) on the workspace resource group
+
+Managed identity API permission setup (`scripts/set-managed-identity-defender-permissions.ps1`) requires:
+
+- access to read the Function App and managed identity principal
+- Microsoft Entra app permission management rights (for example, `Application Administrator`)
+- admin consent rights when `-GrantAdminConsent` is used
 
 Why this extra mapping exists:
 
@@ -69,7 +83,7 @@ The managed identity requires:
 	- `SecurityConfiguration.Read.All` — retrieve secure configuration assessments.
 
 2. **Azure Monitor Logs Ingestion permissions** to upload records via the Data Collection Rule:
-	- `Monitoring Metrics Publisher` role on the DCR (granted automatically by Bicep).
+	- `Monitoring Metrics Publisher` role on the Data Collection Rule.
 
 See `README.md` for step-by-step CLI commands to grant these permissions.
 

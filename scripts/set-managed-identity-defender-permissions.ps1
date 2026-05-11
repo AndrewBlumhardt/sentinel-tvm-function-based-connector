@@ -6,8 +6,7 @@ param(
     [Parameter(Mandatory = $true)]
     [string]$FunctionAppResourceGroup,
 
-    [ValidateSet("AzureCloud", "AzureUSGovernment")]
-    [string]$CloudName = "AzureCloud",
+    [string]$CloudName = "",
 
     [string]$SubscriptionId = "",
     [string]$TenantId = "",
@@ -16,7 +15,7 @@ param(
     [switch]$SkipLogin,
 
     [string[]]$RequiredPermissions = @(
-        "AdvancedQuery.Read.All",
+        "AdvancedHunting.Read.All",
         "Machine.Read.All",
         "Software.Read.All",
         "Vulnerability.Read.All",
@@ -41,6 +40,132 @@ function Invoke-AzCli {
     return $output
 }
 
+function Ensure-AzLogin {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$EffectiveCloud,
+
+        [string]$TenantId = ""
+    )
+
+    & az account get-access-token --resource-type arm -o none 2>$null
+    if ($LASTEXITCODE -eq 0) {
+        return
+    }
+
+    Write-Host "Azure session is missing or expired. Starting az login for cloud '$EffectiveCloud'..."
+    $loginArgs = @("login", "--scope", "https://management.core.windows.net//.default", "--allow-no-subscriptions")
+    if (-not [string]::IsNullOrWhiteSpace($TenantId)) {
+        $loginArgs += @("--tenant", $TenantId)
+    }
+
+    Invoke-AzCli -Args $loginArgs | Out-Null
+}
+
+function Resolve-PermissionRole {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$Permission,
+
+        [Parameter(Mandatory = $true)]
+        [object[]]$AppRoles
+    )
+
+    $aliases = @($Permission)
+    switch ($Permission) {
+        "AdvancedQuery.Read.All" {
+            $aliases += @("AdvancedHunting.Read.All", "AdvancedQuery.Read")
+        }
+        "AdvancedHunting.Read.All" {
+            $aliases += @("AdvancedQuery.Read.All", "AdvancedQuery.Read")
+        }
+        default { }
+    }
+
+    foreach ($candidate in $aliases) {
+        $match = $AppRoles | Where-Object { $_.value -eq $candidate } | Select-Object -First 1
+        if ($match) {
+            return [PSCustomObject]@{
+                RequestedPermission = $Permission
+                ResolvedPermission = $candidate
+                RoleId = $match.id
+            }
+        }
+    }
+
+    return $null
+}
+
+function Get-PermissionCandidates {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$Permission
+    )
+
+    $aliases = @($Permission)
+    switch ($Permission) {
+        "AdvancedQuery.Read.All" {
+            $aliases += @("AdvancedHunting.Read.All", "AdvancedQuery.Read")
+        }
+        "AdvancedHunting.Read.All" {
+            $aliases += @("AdvancedQuery.Read.All", "AdvancedQuery.Read")
+        }
+        default { }
+    }
+
+    return $aliases
+}
+
+function Get-GraphResourceEndpoint {
+    $graphEndpoint = (& az cloud show --query endpoints.microsoftGraphResourceId -o tsv).Trim()
+    if ([string]::IsNullOrWhiteSpace($graphEndpoint)) {
+        throw "Unable to resolve Microsoft Graph resource endpoint from current cloud context."
+    }
+
+    return $graphEndpoint.TrimEnd('/')
+}
+
+function Invoke-GraphRest {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$Method,
+
+        [Parameter(Mandatory = $true)]
+        [string]$Url,
+
+        [string]$Resource,
+        [string]$Body = ""
+    )
+
+    $args = @(
+        "rest",
+        "--method", $Method,
+        "--url", $Url,
+        "--headers", "Content-Type=application/json", "Accept=application/json",
+        "--output", "json"
+    )
+
+    if (-not [string]::IsNullOrWhiteSpace($Resource)) {
+        $args += @("--resource", $Resource)
+    }
+
+    $tempBodyPath = ""
+    try {
+        if (-not [string]::IsNullOrWhiteSpace($Body)) {
+            $tempBodyPath = [System.IO.Path]::GetTempFileName()
+            Set-Content -Path $tempBodyPath -Value $Body -NoNewline -Encoding utf8
+            $args += @("--body", "@$tempBodyPath")
+        }
+
+        return Invoke-AzCli -Args $args
+    }
+    finally {
+        if (-not [string]::IsNullOrWhiteSpace($tempBodyPath) -and (Test-Path $tempBodyPath)) {
+            Remove-Item -Path $tempBodyPath -Force -ErrorAction SilentlyContinue
+        }
+    }
+}
+
 if (-not (Get-Command az -ErrorAction SilentlyContinue)) {
     throw "Azure CLI (az) is required but was not found in PATH."
 }
@@ -50,27 +175,42 @@ if ($LASTEXITCODE -ne 0) {
     throw "Unable to query current Azure cloud context."
 }
 
-if ($currentCloud -ne $CloudName) {
-    Write-Host "Switching Azure cloud context from '$currentCloud' to '$CloudName'..."
-    Invoke-AzCli -Args @("cloud", "set", "--name", $CloudName) | Out-Null
+$effectiveCloud = $currentCloud
+if (-not [string]::IsNullOrWhiteSpace($CloudName)) {
+    if ($CloudName -notin @("AzureCloud", "AzureUSGovernment")) {
+        throw "Invalid CloudName '$CloudName'. Allowed values: AzureCloud, AzureUSGovernment."
+    }
+
+    $effectiveCloud = $CloudName
+}
+
+if ($currentCloud -ne $effectiveCloud) {
+    Write-Host "Switching Azure cloud context from '$currentCloud' to '$effectiveCloud'..."
+    Invoke-AzCli -Args @("cloud", "set", "--name", $effectiveCloud) | Out-Null
+}
+else {
+    Write-Host "Using current Azure cloud context '$effectiveCloud'."
 }
 
 if (-not $SkipLogin) {
-    & az account show -o none 2>$null
-    if ($LASTEXITCODE -ne 0) {
-        Write-Host "No active Azure session found. Starting Azure CLI sign-in for cloud '$CloudName'..."
-        if (-not [string]::IsNullOrWhiteSpace($TenantId)) {
-            Invoke-AzCli -Args @("login", "--tenant", $TenantId, "--allow-no-subscriptions") | Out-Null
-        }
-        else {
-            Invoke-AzCli -Args @("login", "--allow-no-subscriptions") | Out-Null
-        }
-    }
+    Ensure-AzLogin -EffectiveCloud $effectiveCloud -TenantId $TenantId
 }
 
 if (-not [string]::IsNullOrWhiteSpace($SubscriptionId)) {
     Write-Host "Setting active subscription to '$SubscriptionId'..."
     Invoke-AzCli -Args @("account", "set", "--subscription", $SubscriptionId) | Out-Null
+}
+
+$accountInfo = (& az account show -o json 2>$null | ConvertFrom-Json)
+if ($accountInfo) {
+    Write-Host ""
+    Write-Host "--- Preflight context ---"
+    Write-Host "  Cloud       : $effectiveCloud"
+    Write-Host "  Subscription: $($accountInfo.id)  ($($accountInfo.name))"
+    Write-Host "  Tenant      : $($accountInfo.tenantId)"
+    Write-Host "  User        : $($accountInfo.user.name)"
+    Write-Host "-------------------------"
+    Write-Host ""
 }
 
 $principalId = (Invoke-AzCli -Args @(
@@ -88,78 +228,136 @@ if ([string]::IsNullOrWhiteSpace($principalId)) {
 
 Write-Host "Managed identity object ID: $principalId"
 
-$defenderSpId = (Invoke-AzCli -Args @(
+$defenderSps = (Invoke-AzCli -Args @(
     "ad", "sp", "list",
-    "--display-name", "Microsoft Threat Protection",
-    "--query", "[0].id",
-    "-o", "tsv"
-)).Trim()
+    "--all",
+    "--query", "[?displayName=='Microsoft Threat Protection' || displayName=='WindowsDefenderATP'].{id:id,appId:appId,displayName:displayName}",
+    "-o", "json"
+) | ConvertFrom-Json)
 
-if ([string]::IsNullOrWhiteSpace($defenderSpId)) {
+if (-not $defenderSps -or $defenderSps.Count -eq 0) {
     throw "Failed to resolve Microsoft Threat Protection service principal."
 }
 
-Write-Host "Defender service principal ID: $defenderSpId"
+Write-Host "Candidate Defender service principals found:"
+($defenderSps | Sort-Object displayName | Format-Table displayName, appId, id -AutoSize | Out-String).TrimEnd() | Out-Host
 
-$appRoles = (Invoke-AzCli -Args @(
-    "ad", "sp", "show",
-    "--id", $defenderSpId,
-    "--query", "appRoles[?contains(allowedMemberTypes, 'Application')].{value:value,id:id}",
-    "-o", "json"
-) | ConvertFrom-Json)
+$spCatalog = @()
+foreach ($candidateSp in $defenderSps) {
+    $candidateRoles = (Invoke-AzCli -Args @(
+        "ad", "sp", "show",
+        "--id", $candidateSp.id,
+        "--query", "appRoles[?contains(allowedMemberTypes, 'Application')].{value:value,id:id}",
+        "-o", "json"
+    ) | ConvertFrom-Json)
 
-if (-not $appRoles -or $appRoles.Count -eq 0) {
-    throw "No application app roles were returned for Defender service principal '$defenderSpId'."
+    $spCatalog += [PSCustomObject]@{
+        Id = $candidateSp.id
+        AppId = $candidateSp.appId
+        DisplayName = $candidateSp.displayName
+        AppRoles = @($candidateRoles)
+    }
 }
 
-$targetRoleIds = @()
+if (-not $spCatalog -or $spCatalog.Count -eq 0) {
+    throw "Failed to load Defender service principal role catalogs."
+}
+
+$targetAssignments = @()
+$missingPermissions = @()
 foreach ($permission in $RequiredPermissions) {
-    $match = $appRoles | Where-Object { $_.value -eq $permission } | Select-Object -First 1
-    if (-not $match) {
-        throw "Required permission '$permission' was not found in Defender app roles."
+    $matches = @()
+    foreach ($sp in $spCatalog) {
+        $resolved = Resolve-PermissionRole -Permission $permission -AppRoles $sp.AppRoles
+        if ($resolved) {
+            $matches += [PSCustomObject]@{
+                Permission = $permission
+                ResolvedPermission = $resolved.ResolvedPermission
+                RoleId = $resolved.RoleId
+                ResourceSpId = $sp.Id
+                ResourceAppId = $sp.AppId
+                ResourceDisplayName = $sp.DisplayName
+            }
+        }
     }
 
-    $targetRoleIds += [PSCustomObject]@{
-        Permission = $permission
-        RoleId = $match.id
+    if (-not $matches -or $matches.Count -eq 0) {
+        $missingPermissions += $permission
+        continue
     }
+
+    $preferredDisplayName = if ($permission -like "Advanced*") { "Microsoft Threat Protection" } else { "WindowsDefenderATP" }
+    $chosen = $matches | Where-Object { $_.ResourceDisplayName -eq $preferredDisplayName } | Select-Object -First 1
+    if (-not $chosen) {
+        $chosen = $matches | Select-Object -First 1
+    }
+
+    $targetAssignments += $chosen
 }
 
-$currentAssignments = (Invoke-AzCli -Args @(
-    "ad", "app", "permission", "list",
-    "--id", $principalId,
-    "-o", "json"
-) | ConvertFrom-Json)
+if ($targetAssignments.Count -eq 0) {
+    $availableBySp = @()
+    foreach ($sp in $spCatalog) {
+        $availableBySp += "$($sp.DisplayName): $((@($sp.AppRoles | Select-Object -ExpandProperty value | Sort-Object) -join ', '))"
+    }
+    throw "None of the requested Defender permissions are available in this tenant/cloud. Requested: $($RequiredPermissions -join ', '). Available app roles by resource: $($availableBySp -join ' | ')"
+}
 
-$currentRoleIds = @{}
-foreach ($api in $currentAssignments) {
-    if ($api.resourceAppId -eq $null) { continue }
-    foreach ($assignment in $api.resourceAccess) {
-        if ($assignment.type -eq "Role") {
-            $currentRoleIds[$assignment.id.ToString().ToLowerInvariant()] = $true
-        }
+if ($missingPermissions.Count -gt 0) {
+    Write-Warning "The following requested permissions are not available in this tenant/cloud and will be skipped: $($missingPermissions -join ', ')"
+}
+
+Write-Host "Resolved permission assignment plan:"
+($targetAssignments | Sort-Object Permission | Select-Object Permission, ResolvedPermission, ResourceDisplayName, ResourceAppId | Format-Table -AutoSize | Out-String).TrimEnd() | Out-Host
+
+$graphResource = Get-GraphResourceEndpoint
+$graphBase = "$graphResource/v1.0"
+$assignmentsUrl = "$graphBase/servicePrincipals/$principalId/appRoleAssignments"
+
+$currentAssignmentsResponse = (Invoke-GraphRest -Method "get" -Url $assignmentsUrl -Resource $graphResource | ConvertFrom-Json)
+$currentAssignments = @()
+if ($currentAssignmentsResponse.value) {
+    $currentAssignments = @($currentAssignmentsResponse.value)
+}
+
+$currentAssignmentKeys = @{}
+foreach ($assignment in $currentAssignments) {
+    if ($assignment.resourceId -and $assignment.appRoleId) {
+        $key = "$($assignment.resourceId.ToString().ToLowerInvariant())|$($assignment.appRoleId.ToString().ToLowerInvariant())"
+        $currentAssignmentKeys[$key] = $true
     }
 }
 
 $added = @()
 $alreadyPresent = @()
 
-foreach ($entry in $targetRoleIds) {
+foreach ($entry in $targetAssignments) {
+    $resourceKey = $entry.ResourceSpId.ToString().ToLowerInvariant()
     $roleIdLower = $entry.RoleId.ToString().ToLowerInvariant()
-    if ($currentRoleIds.ContainsKey($roleIdLower)) {
-        $alreadyPresent += $entry.Permission
+    $assignmentKey = "$resourceKey|$roleIdLower"
+
+    if ($currentAssignmentKeys.ContainsKey($assignmentKey)) {
+        $alreadyPresent += "$($entry.ResolvedPermission)@$($entry.ResourceDisplayName)"
         continue
     }
 
-    Write-Host "Granting $($entry.Permission) ($($entry.RoleId))"
-    Invoke-AzCli -Args @(
-        "ad", "app", "permission", "add",
-        "--id", $principalId,
-        "--api", $defenderSpId,
-        "--api-permissions", "$($entry.RoleId)=Role"
-    ) | Out-Null
+    if ($entry.Permission -ne $entry.ResolvedPermission) {
+        Write-Host "Granting $($entry.Permission) using '$($entry.ResolvedPermission)' on '$($entry.ResourceDisplayName)' ($($entry.RoleId))"
+    }
+    else {
+        Write-Host "Granting $($entry.Permission) on '$($entry.ResourceDisplayName)' ($($entry.RoleId))"
+    }
 
-    $added += $entry.Permission
+    $assignmentBody = @{
+        principalId = $principalId
+        resourceId = $entry.ResourceSpId
+        appRoleId = $entry.RoleId
+    } | ConvertTo-Json -Compress
+
+    Invoke-GraphRest -Method "post" -Url $assignmentsUrl -Resource $graphResource -Body $assignmentBody | Out-Null
+
+    $added += "$($entry.ResolvedPermission)@$($entry.ResourceDisplayName)"
+    $currentAssignmentKeys[$assignmentKey] = $true
 }
 
 if ($alreadyPresent.Count -gt 0) {
@@ -174,13 +372,41 @@ else {
 }
 
 if ($GrantAdminConsent) {
-    Write-Host "Granting admin consent..."
-    Invoke-AzCli -Args @("ad", "app", "permission", "admin-consent", "--id", $principalId) | Out-Null
-    Write-Host "Admin consent completed."
+    Write-Host "GrantAdminConsent was requested. For managed identities, direct app role assignments are already tenant-approved at assignment time. No separate admin-consent command is required."
 }
 else {
-    Write-Host "Admin consent not requested. Re-run with -GrantAdminConsent if needed."
+    Write-Host "Admin consent step skipped (not required for managed identity service principal app role assignments)."
 }
 
 Write-Host "Final Defender app role assignments for managed identity:"
-Invoke-AzCli -Args @("ad", "app", "permission", "list", "--id", $principalId, "-o", "table") | Out-Host
+$finalAssignmentsResponse = (Invoke-GraphRest -Method "get" -Url $assignmentsUrl -Resource $graphResource | ConvertFrom-Json)
+$finalAssignments = @()
+if ($finalAssignmentsResponse.value) {
+    $targetSpIds = @($targetAssignments | Select-Object -ExpandProperty ResourceSpId -Unique)
+    $finalAssignments = @($finalAssignmentsResponse.value | Where-Object { $targetSpIds -contains $_.resourceId })
+}
+
+$spNameById = @{}
+$roleNameByResourceAndRole = @{}
+foreach ($sp in $spCatalog) {
+    $spNameById[$sp.Id.ToString().ToLowerInvariant()] = $sp.DisplayName
+    foreach ($role in $sp.AppRoles) {
+        $roleKey = "$($sp.Id.ToString().ToLowerInvariant())|$($role.id.ToString().ToLowerInvariant())"
+        $roleNameByResourceAndRole[$roleKey] = $role.value
+    }
+}
+
+$finalRows = @()
+foreach ($assignment in $finalAssignments) {
+    $resourceKey = $assignment.resourceId.ToString().ToLowerInvariant()
+    $roleKey = $assignment.appRoleId.ToString().ToLowerInvariant()
+    $compositeKey = "$resourceKey|$roleKey"
+    $finalRows += [PSCustomObject]@{
+        Resource = $(if ($spNameById.ContainsKey($resourceKey)) { $spNameById[$resourceKey] } else { "<unknown>" })
+        RoleName = $(if ($roleNameByResourceAndRole.ContainsKey($compositeKey)) { $roleNameByResourceAndRole[$compositeKey] } else { "<unknown>" })
+        AppRoleId = $assignment.appRoleId
+        AssignmentId = $assignment.id
+    }
+}
+
+$finalRows | Sort-Object Resource, RoleName | Format-Table -AutoSize | Out-Host
