@@ -1,7 +1,13 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Any
+
+
+@dataclass(frozen=True)
+class DatasetColumn:
+    name: str
+    type: str
 
 
 @dataclass(frozen=True)
@@ -23,6 +29,7 @@ class DatasetConfig:
     request_delay_ms: int = 0
     transform_mode: str = "default"
     extra_params: dict[str, Any] | None = None
+    columns: list[DatasetColumn] = field(default_factory=list)
 
     @property
     def stream_name(self) -> str:

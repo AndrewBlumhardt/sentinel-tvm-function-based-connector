@@ -260,7 +260,7 @@
         {"name": "ComponentName", "type": "string"},
         {"name": "ComponentFamily", "type": "string"},
         {"name": "ComponentVersion", "type": "string"},
-        {"name": "AdditionalFields", "type": "string"}
+        {"name": "AdditionalFields", "type": "dynamic"}
       ]
     },
     {
@@ -282,7 +282,7 @@
         {"name": "DeviceId", "type": "string"},
         {"name": "DeviceName", "type": "string"},
         {"name": "OSPlatform", "type": "string"},
-        {"name": "AdditionalFields", "type": "string"}
+        {"name": "AdditionalFields", "type": "dynamic"}
       ]
     },
     {

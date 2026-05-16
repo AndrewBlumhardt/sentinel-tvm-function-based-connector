@@ -9,7 +9,7 @@ param(
     [string]$WorkspaceResourceGroupName = $ResourceGroupName,
     [string]$Location = "",
     [string]$NamePrefix = "sentinel-tvm",
-    [string]$FunctionAppName = "sentinel-tvm-func",
+    [string]$FunctionAppName = "sentinel-tvm-connector-func",
 
     [string]$CloudName = "",
 
@@ -171,8 +171,8 @@ function Resolve-FunctionAppName {
         [string]$NamePrefix = "sentinel-tvm"
     )
 
-    $defaultName = "sentinel-tvm-func"
-    if ($RequestedName -ne $defaultName) {
+    $defaultNames = @("sentinel-tvm-func", "sentinel-tvm-connector-func")
+    if ($RequestedName -notin $defaultNames) {
         return $RequestedName
     }
 

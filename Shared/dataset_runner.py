@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from collections.abc import Iterator
 
 from Shared.batch_processor import iter_batches
@@ -81,7 +82,36 @@ class DatasetRunner:
         record: dict[str, object],
         metadata: dict[str, object],
     ) -> dict[str, object]:
-        """Flatten one source row and stamp shared ingestion fields."""
+        """Project one source row into the declared table schema and stamp shared ingestion fields."""
         flattened = self._flattener.flatten(record)
-        flattened["TimeGenerated"] = metadata["TimeGenerated"]
-        return flattened
+        transformed: dict[str, object] = {}
+
+        for column in dataset.columns:
+            if column.name == "TimeGenerated":
+                continue
+
+            source_value = record.get(column.name)
+            if column.type == "dynamic":
+                dynamic_value = self._coerce_dynamic_value(source_value)
+                if dynamic_value is not None:
+                    transformed[column.name] = dynamic_value
+                continue
+
+            flattened_value = flattened.get(column.name)
+            if flattened_value is not None:
+                transformed[column.name] = flattened_value
+            elif source_value is not None:
+                transformed[column.name] = source_value
+
+        transformed["TimeGenerated"] = metadata["TimeGenerated"]
+        return transformed
+
+    def _coerce_dynamic_value(self, value: object) -> object | None:
+        if value is None:
+            return None
+        if isinstance(value, str):
+            try:
+                return json.loads(value)
+            except json.JSONDecodeError:
+                return value
+        return value

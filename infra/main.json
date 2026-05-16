@@ -5,7 +5,7 @@
     "_generator": {
       "name": "bicep",
       "version": "0.43.8.12551",
-      "templateHash": "11627082553869737562"
+      "templateHash": "7527066973196004590"
     }
   },
   "parameters": {
@@ -25,7 +25,7 @@
     },
     "functionAppName": {
       "type": "string",
-      "defaultValue": "[format('{0}-func', parameters('namePrefix'))]",
+      "defaultValue": "[format('{0}-connector-func', parameters('namePrefix'))]",
       "metadata": {
         "description": "Name of the Function App to create."
       }
@@ -679,7 +679,7 @@
             },
             {
               "name": "AdditionalFields",
-              "type": "string"
+              "type": "dynamic"
             }
           ]
         },
@@ -722,7 +722,7 @@
             },
             {
               "name": "AdditionalFields",
-              "type": "string"
+              "type": "dynamic"
             }
           ]
         },

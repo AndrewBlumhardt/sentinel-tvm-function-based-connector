@@ -4,7 +4,7 @@ import json
 import os
 from pathlib import Path
 
-from Shared.models import AppSettings, DatasetConfig
+from Shared.models import AppSettings, DatasetColumn, DatasetConfig
 
 
 class ConfigLoader:
@@ -53,6 +53,10 @@ class ConfigLoader:
                     request_delay_ms=request_delay_ms,
                     transform_mode=self._get_text_override(name, "transformMode", item.get("transformMode", "default")) or "default",
                     extra_params=item.get("extraParams") or {},
+                    columns=[
+                        DatasetColumn(name=column["name"], type=column["type"])
+                        for column in item.get("columns", [])
+                    ],
                 )
             )
         # Keep CollectorVersion visible to downstream components that read env directly.

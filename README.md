@@ -198,7 +198,8 @@ Column type conventions:
 
 - `datetime` — stored as `datetime` in DCR stream declarations; Bicep converts to `dateTime` for the workspace table API
 - `string`, `boolean`, `int`, `real` — used as-is in both the DCR and workspace table
-- Arrays from the source API are serialized to JSON strings by the collector and stored as `string` columns
+- `dynamic` — used for source fields that must remain structured JSON objects, such as `AdditionalFields`
+- Arrays from the source API are serialized to JSON strings by the collector and stored as `string` columns unless the dataset schema declares the field as `dynamic`
 
 Schema source of truth: `Functions/datasets.json` — edit the `columns` array for each dataset to add, remove, or retype columns. A Bicep redeploy will update the workspace tables and DCR stream declarations automatically.
 
