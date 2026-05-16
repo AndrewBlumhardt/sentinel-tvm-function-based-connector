@@ -60,7 +60,7 @@ var commonAppSettings = [
   }
   {
     name: 'SCM_DO_BUILD_DURING_DEPLOYMENT'
-    value: 'true'
+    value: 'false'
   }
   {
     name: 'PYTHON_ISOLATE_WORKER_DEPENDENCIES'

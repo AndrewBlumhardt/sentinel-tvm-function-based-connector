@@ -498,16 +498,33 @@ else {
 Start-Stage -Name "Function code deployment"
 
 $functionProjectRoot = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
-Write-Host "Publishing function code from '$functionProjectRoot' to '$resolvedFunctionAppName'..."
+Write-Host "Packaging function code from '$functionProjectRoot' for '$resolvedFunctionAppName'..."
+$packagePath = Join-Path ([System.IO.Path]::GetTempPath()) ("{0}-{1}.zip" -f $resolvedFunctionAppName, [guid]::NewGuid().ToString('N'))
 Push-Location $functionProjectRoot
 try {
-    & $script:FuncCommand azure functionapp publish $resolvedFunctionAppName --python --build local
+    & $script:FuncCommand pack --output $packagePath
     if ($LASTEXITCODE -ne 0) {
-        Stop-WithError "Function code deployment failed. See output above for details."
+        Stop-WithError "Function package creation failed. See output above for details."
     }
+
+    if (-not (Test-Path $packagePath)) {
+        Stop-WithError "Function package was not created at $packagePath."
+    }
+
+    Write-Host "Deploying package '$packagePath' to '$resolvedFunctionAppName' via zip deployment..."
+    Invoke-AzCli -Args @(
+        "functionapp", "deployment", "source", "config-zip",
+        "--name", $resolvedFunctionAppName,
+        "--resource-group", $ResourceGroupName,
+        "--src", $packagePath,
+        "-o", "none"
+    ) | Out-Null
 }
 finally {
     Pop-Location
+    if (Test-Path $packagePath) {
+        Remove-Item $packagePath -Force -ErrorAction SilentlyContinue
+    }
 }
 
 Start-Stage -Name "Function app state"
