@@ -24,5 +24,5 @@ This folder contains infrastructure-as-code assets for deploying the connector r
 
 ## Notes
 
-- Deployment entry point is `../deploy.ps1`, which calls `main.bicep` with the required parameters.
+- Deployment entry point is `../scripts/deploy.ps1`, which calls `main.bicep` with the required parameters.
 - These resources support the Function App ingestion workflow (not a Logic App workflow).

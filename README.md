@@ -30,7 +30,7 @@ Use this exact order.
 
 1. Open PowerShell in the local repo folder.
 2. Sign in and verify cloud/subscription.
-3. Run `deploy.ps1`.
+3. Run `scripts/deploy.ps1`.
 4. Run `scripts/set-managed-identity-defender-permissions.ps1`.
 5. Run post-deployment validation.
 
@@ -47,7 +47,7 @@ For GCC High, either set cloud to `AzureUSGovernment` first, or pass `-CloudName
 ### 2) Deploy infrastructure and function app
 
 ```powershell
-./deploy.ps1 `
+./scripts/deploy.ps1 `
   -ResourceGroupName <deployment-resource-group> `
   -WorkspaceName <sentinel-workspace-name> `
   -WorkspaceResourceGroupName <workspace-resource-group> `
@@ -133,6 +133,18 @@ README keeps this section intentionally high-level:
 
 If you need table-level mapping details, use `datasets.json` as the source of truth.
 
+## Source comparison and operating model
+
+Use raw Advanced Hunting datasets when you want table-level parity with Defender hunting data and direct KQL access patterns.
+
+Use Defender REST datasets when you want cleaner object models, endpoint-level pagination behavior, or more durable API contracts for high-volume collection.
+
+Recommended operating model:
+
+1. Enable both source families for the domains you care about.
+2. Compare the resulting custom tables in Sentinel.
+3. Disable the source family you do not need.
+
 ## Configuration highlights
 
 Primary configuration is in `datasets.json` and Function App settings.
@@ -158,7 +170,7 @@ Naming behavior:
 
 Permission model:
 
-- `deploy.ps1` handles Azure RBAC for ingestion resources.
+- `scripts/deploy.ps1` handles Azure RBAC for ingestion resources.
 - `set-managed-identity-defender-permissions.ps1` handles Entra API app roles for Defender reads.
 
 Both are required for end-to-end ingestion.
@@ -176,13 +188,11 @@ Copy-Item local.settings.sample.json local.settings.json
 ## Repo layout
 
 - `function_app.py`: Function app entry point.
-- `deploy.ps1`: Deployment orchestration script.
 - `datasets.json`: Dataset catalog and defaults.
 - `Functions/`: Timer trigger entry points.
 - `Shared/`: Shared ingestion runtime.
 - `infra/`: Bicep/ARM definitions.
-- `scripts/`: Permission and support scripts.
-- `docs/`: Supplemental notes.
+- `scripts/`: Deployment, permissions, and local validation scripts.
 - `images/`: Screenshots and diagrams.
 
 ## Troubleshooting
