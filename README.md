@@ -98,12 +98,14 @@ Required access for this step: `Contributor` on the deployment resource group.
 
 By default, `deploy.ps1` leaves the Function App in a stopped state so you can finish credentials/permissions before any timer triggers run.
 
+`deploy.ps1` prints the resolved Function App name during preflight. Use that exact value in follow-on commands.
+
 When ready to test:
 
 ```powershell
-az functionapp start --name sentinel-tvm-connector-func --resource-group <deployment-resource-group>
+az functionapp start --name <function-app-name> --resource-group <deployment-resource-group>
 # or
-az functionapp restart --name sentinel-tvm-connector-func --resource-group <deployment-resource-group>
+az functionapp restart --name <function-app-name> --resource-group <deployment-resource-group>
 ```
 
 If you want it left running immediately after deploy, add `-KeepFunctionRunning` to `deploy.ps1`.
@@ -121,7 +123,7 @@ Required Entra role for this step (one of):
 
 ```powershell
 ./scripts/set-managed-identity-defender-permissions.ps1 `
-  -FunctionAppName sentinel-tvm-connector-func `
+  -FunctionAppName <function-app-name> `
   -FunctionAppResourceGroup <deployment-resource-group> `
   -SubscriptionId <subscription-id> `
   -GrantAdminConsent
@@ -140,7 +142,7 @@ Expected core resources:
 - `sentinel-tvm-appi` (Application Insights)
 - `sentinel-tvm-dce` (Data Collection Endpoint)
 - `sentinel-tvm-dcr-01/02/03` (sharded Data Collection Rules)
-- `sentinel-tvm-connector-func` (Function App)
+- `<namePrefix>-connector-func-<suffix>` (Function App)
 - `sentinel-tvm-plan` (App Service plan)
 - `stg...` (storage account)
 
@@ -167,7 +169,7 @@ Validate identity, RBAC, and app settings:
 ```powershell
 $subId = "<subscription-id>"
 $deployRg = "<deployment-resource-group>"
-$funcName = "sentinel-tvm-connector-func"
+$funcName = "<function-app-name>"
 $appiName = "sentinel-tvm-appi"
 
 $funcPrincipalId = az functionapp identity show `
@@ -256,7 +258,7 @@ Example daily schedule: `0 0 1 * * *`
 
 Naming behavior:
 
-- Default Function App name: `sentinel-tvm-connector-func`
+- Default Function App name pattern: `<namePrefix>-connector-func-<suffix>`
 - Redeploy updates same instance
 - Override with `-FunctionAppName` when needed
 
@@ -273,7 +275,7 @@ Use the migration script to rename existing legacy dataset app setting keys in a
 
 ```powershell
 ./scripts/migrate-dataset-setting-names.ps1 `
-  -FunctionAppName sentinel-tvm-connector-func `
+  -FunctionAppName <function-app-name> `
   -ResourceGroupName <deployment-resource-group>
 ```
 
@@ -281,7 +283,7 @@ Apply changes and optionally remove legacy keys after validation:
 
 ```powershell
 ./scripts/migrate-dataset-setting-names.ps1 `
-  -FunctionAppName sentinel-tvm-connector-func `
+  -FunctionAppName <function-app-name> `
   -ResourceGroupName <deployment-resource-group> `
   -Apply `
   -RemoveLegacy

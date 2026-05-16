@@ -104,7 +104,7 @@ param namePrefix string = 'sentinel-tvm'
 param location string = resourceGroup().location
 
 @description('Name of the Function App to create.')
-param functionAppName string = '${namePrefix}-connector-func'
+param functionAppName string = '${namePrefix}-connector-func-${take(uniqueString(resourceGroup().id), 7)}'
 
 @description('Name of the existing Log Analytics workspace used by Microsoft Sentinel.')
 param workspaceName string

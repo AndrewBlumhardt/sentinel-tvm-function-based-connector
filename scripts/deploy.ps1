@@ -189,12 +189,34 @@ function Get-ResourceGroupLocation {
     return (Invoke-AzCli -Args @("group", "show", "--name", $Name, "--query", "location", "-o", "tsv")).Trim()
 }
 
+function Get-StableSuffix {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$InputText,
+
+        [int]$Length = 6
+    )
+
+    $sha = [System.Security.Cryptography.SHA256]::Create()
+    try {
+        $bytes = [System.Text.Encoding]::UTF8.GetBytes($InputText)
+        $hashBytes = $sha.ComputeHash($bytes)
+        $hashHex = -join ($hashBytes | ForEach-Object { $_.ToString("x2") })
+        return $hashHex.Substring(0, [Math]::Min($Length, $hashHex.Length))
+    }
+    finally {
+        $sha.Dispose()
+    }
+}
+
 function Resolve-FunctionAppName {
     param(
         [Parameter(Mandatory = $true)]
         [string]$RequestedName,
 
-        [string]$NamePrefix = "sentinel-tvm"
+        [string]$NamePrefix = "sentinel-tvm",
+
+        [string]$ScopeSeed = ""
     )
 
     $defaultNames = @("sentinel-tvm-func", "sentinel-tvm-connector-func")
@@ -207,13 +229,18 @@ function Resolve-FunctionAppName {
         $sanitizedPrefix = "sentineltvm"
     }
 
-    $candidate = "$sanitizedPrefix-connector-func"
+    if ([string]::IsNullOrWhiteSpace($ScopeSeed)) {
+        $ScopeSeed = "${sanitizedPrefix}:default"
+    }
+
+    $suffix = Get-StableSuffix -InputText $ScopeSeed -Length 6
+    $candidate = "$sanitizedPrefix-connector-func-$suffix"
 
     if ($candidate.Length -gt 60) {
         $candidate = $candidate.Substring(0, 60)
     }
 
-    Write-Host "Using Function App name: $candidate (will replace on redeploy)"
+    Write-Host "Using Function App name: $candidate (deterministic default; override with -FunctionAppName)"
     return $candidate
 }
 
@@ -338,7 +365,14 @@ if ($accountInfo) {
     Write-Host ""
 }
 
-$resolvedFunctionAppName = Resolve-FunctionAppName -RequestedName $FunctionAppName -NamePrefix $NamePrefix
+$scopeSeed = if ($accountInfo -and -not [string]::IsNullOrWhiteSpace($accountInfo.id)) {
+    "$($accountInfo.id):${ResourceGroupName}:${NamePrefix}"
+}
+else {
+    "${ResourceGroupName}:${NamePrefix}"
+}
+
+$resolvedFunctionAppName = Resolve-FunctionAppName -RequestedName $FunctionAppName -NamePrefix $NamePrefix -ScopeSeed $scopeSeed
 
 Write-Host "Resolved Function App name: $resolvedFunctionAppName"
 
