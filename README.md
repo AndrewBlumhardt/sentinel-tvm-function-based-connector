@@ -138,6 +138,39 @@ az monitor app-insights query `
   --analytics-query "traces | where timestamp > ago(60m) | project timestamp, severityLevel, message | take 20" -o table
 ```
 
+## Required Azure and Entra permissions
+
+Use these minimum permissions for operators running deployment and permission scripts.
+
+### For `scripts/deploy.ps1`
+
+The script deploys infrastructure, configures Function App settings, and assigns RBAC to the Function managed identity.
+
+- Azure subscription/resource access:
+  - `Contributor` on the deployment resource group.
+  - `Contributor` on the workspace resource group (custom table module is deployed there).
+- RBAC assignment capability:
+  - `User Access Administrator` or `Owner` on the deployment resource group scope (required to create `Monitoring Metrics Publisher` role assignment for the Function managed identity).
+
+Notes:
+
+- `Contributor` alone is not enough when a new role assignment must be created.
+- If role assignment already exists, `User Access Administrator`/`Owner` is not used for creation, but keeping it avoids rerun failures.
+
+### For `scripts/set-managed-identity-defender-permissions.ps1`
+
+The script assigns Microsoft Defender application roles to the Function managed identity service principal via Microsoft Graph.
+
+- Azure resource access:
+  - Reader-level access to the Function App resource (or broader) to resolve managed identity principal ID.
+- Microsoft Entra role:
+  - `Application Administrator`, `Cloud Application Administrator`, `Privileged Role Administrator`, or `Global Administrator`.
+
+Notes:
+
+- Script behavior uses direct app role assignment on the managed identity service principal.
+- Separate admin-consent workflow is not required for this managed identity assignment path.
+
 ## Dataset coverage
 
 Detailed per-dataset mappings are defined in `Functions/datasets.json`.
