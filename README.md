@@ -62,8 +62,6 @@ az cloud show --query name -o tsv
 az account show --query "{subscription:id, tenant:tenantId, user:user.name}" -o table
 ```
 
-For GCC High, either set cloud to `AzureUSGovernment` first, or pass `-CloudName AzureUSGovernment` to both scripts.
-
 ### 3) Deploy infrastructure and function app
 
 Required access for this step: `Contributor` on the deployment resource group.
@@ -73,9 +71,10 @@ Required access for this step: `Contributor` on the deployment resource group.
   -ResourceGroupName <deployment-resource-group> `
   -WorkspaceName <sentinel-workspace-name> `
   -WorkspaceResourceGroupName <workspace-resource-group> `
-  -SubscriptionId <subscription-id> `
-  -CloudName AzureUSGovernment
+  -SubscriptionId <subscription-id>
 ```
+
+> **Azure Government (GCC High):** Add `-CloudName AzureUSGovernment` to the command above.
 
 ### 4) Grant managed identity permissions
 
@@ -91,9 +90,10 @@ Required Entra role for this step (one of):
   -FunctionAppName sentinel-tvm-connector-func `
   -FunctionAppResourceGroup <deployment-resource-group> `
   -SubscriptionId <subscription-id> `
-  -CloudName AzureUSGovernment `
   -GrantAdminConsent
 ```
+
+> **Azure Government (GCC High):** Add `-CloudName AzureUSGovernment` to the command above.
 
 ### 5) Confirm deployed resources
 
