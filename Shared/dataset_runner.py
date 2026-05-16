@@ -30,6 +30,7 @@ class DatasetRunner:
         self._logger = get_logger()
 
     def run_dataset(self, dataset_name: str) -> dict[str, int | str]:
+        """Execute one dataset collection run and return ingestion counts."""
         dataset = self._registry.get(dataset_name)
         if not dataset.enabled:
             self._logger.info("Dataset %s is disabled; skipping timer run.", dataset.name)
@@ -65,6 +66,7 @@ class DatasetRunner:
         return {"dataset": dataset.name, "ingested": ingested, "pages": pages}
 
     def _iter_pages(self, dataset: DatasetConfig) -> Iterator[list[dict[str, object]]]:
+        """Dispatch page iteration to the matching upstream source client."""
         if dataset.source_type == "AdvancedHunting":
             return self._hunting_client.iter_pages(dataset)
         if dataset.source_type == "DefenderRestApi":
@@ -79,6 +81,7 @@ class DatasetRunner:
         record: dict[str, object],
         metadata: dict[str, object],
     ) -> dict[str, object]:
+        """Flatten one source row and stamp shared ingestion fields."""
         flattened = self._flattener.flatten(record)
         flattened["TimeGenerated"] = metadata["TimeGenerated"]
         return flattened

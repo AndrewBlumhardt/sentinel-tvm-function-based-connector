@@ -8,6 +8,7 @@ from Shared.runtime import get_dataset_runner
 
 
 def build_timer_blueprint(dataset_name: str, schedule_setting: str, function_name: str) -> func.Blueprint:
+    """Build a timer-trigger blueprint that runs one configured dataset pipeline."""
     blueprint = func.Blueprint()
 
     @blueprint.function_name(name=function_name)
@@ -20,6 +21,7 @@ def build_timer_blueprint(dataset_name: str, schedule_setting: str, function_nam
     def dataset_timer(timer: func.TimerRequest) -> None:
         if timer.past_due:
             logging.warning("Timer for %s ran late.", dataset_name)
+        # Runtime wiring is shared across all triggers to keep per-dataset files minimal.
         get_dataset_runner().run_dataset(dataset_name)
 
     return blueprint

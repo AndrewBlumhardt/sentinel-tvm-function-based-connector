@@ -8,4 +8,5 @@ class LogIngestionClient:
         self._client = LogsIngestionClient(endpoint=endpoint, credential=credential, logging_enable=True)
 
     def upload(self, rule_id: str, stream_name: str, records: list[dict[str, object]]) -> None:
+        """Upload one batch of transformed records to the configured DCR stream."""
         self._client.upload(rule_id=rule_id, stream_name=stream_name, logs=records)

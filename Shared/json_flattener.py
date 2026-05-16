@@ -6,6 +6,7 @@ from collections.abc import Mapping, Sequence
 
 class JsonFlattener:
     def flatten(self, payload: Mapping[str, object], prefix: str = "") -> dict[str, object]:
+        """Flatten nested objects and serialize arrays for Log Analytics ingestion."""
         flattened: dict[str, object] = {}
         for key, value in payload.items():
             qualified_key = f"{prefix}_{key}" if prefix else key

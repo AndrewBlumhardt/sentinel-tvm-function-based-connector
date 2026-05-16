@@ -2,6 +2,19 @@
 
 Azure Function connector for collecting Microsoft Defender TVM data and ingesting it into Microsoft Sentinel (Log Analytics custom tables) using DCR/DCE.
 
+## Contents
+
+- [Why this exists](#why-this-exists)
+- [What this connector does](#what-this-connector-does)
+- [Quick deployment](#quick-deployment)
+- [Optional local development setup](#optional-local-development-setup)
+- [Post-deployment checks](#post-deployment-parameters-and-validation)
+- [Dataset coverage](#dataset-coverage)
+- [Table schema model](#table-schema-and-added-columns)
+- [Configuration highlights](#configuration-highlights)
+- [Folder guides](#folder-guides)
+- [Troubleshooting](#troubleshooting)
+
 ## Why this exists
 
 This connector is a continuation of the Logic App approach, built to address scale and operational limits seen in larger environments.
@@ -24,7 +37,7 @@ Data collection can run from two source models:
 
 Running both lets you compare coverage and keep what works best for your environment.
 
-## Simple deployment instructions
+## Quick deployment
 
 Use this exact order.
 
@@ -256,6 +269,14 @@ Why each should stay in root:
 - `requirements.txt`: used by build/deploy tooling to install Python dependencies from the project root.
 - `pyrightconfig.json`: default Pyright/Pylance project configuration location for workspace-level analysis.
 - `local.settings.sample.json`: canonical template for creating `local.settings.json` with the documented root-level copy command.
+
+## Folder guides
+
+- [Functions/README.md](Functions/README.md): Timer-trigger modules and dataset catalog.
+- [Shared/README.md](Shared/README.md): Shared runtime and ingestion components.
+- [infra/README.md](infra/README.md): Bicep/ARM deployment assets.
+- [scripts/README.md](scripts/README.md): Deployment, permission, migration, and validation scripts.
+- [images/README.md](images/README.md): Documentation image assets.
 
 ## Repo layout
 

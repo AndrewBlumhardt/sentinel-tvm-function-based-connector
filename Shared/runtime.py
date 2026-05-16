@@ -15,6 +15,7 @@ from Shared.retry_policy import RetryPolicy
 
 @lru_cache(maxsize=1)
 def get_dataset_runner() -> DatasetRunner:
+    """Create and cache the shared runtime graph used by timer-trigger executions."""
     config_loader = ConfigLoader()
     app_settings = config_loader.load_app_settings()
     registry = DatasetRegistry(config_loader.load_datasets())

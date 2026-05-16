@@ -12,6 +12,7 @@ class ConfigLoader:
         self._root_path = root_path or Path(__file__).resolve().parent.parent
 
     def load_app_settings(self) -> AppSettings:
+        """Read global app settings from environment variables."""
         return AppSettings(
             dataset_config_path=os.getenv("DatasetConfigPath", "Functions/datasets.json"),
             collector_version=os.getenv("CollectorVersion", "0.1.0"),
@@ -22,6 +23,7 @@ class ConfigLoader:
         )
 
     def load_datasets(self) -> list[DatasetConfig]:
+        """Load dataset definitions from JSON and apply per-dataset env overrides."""
         app_settings = self.load_app_settings()
         raw_config = json.loads(self._resolve_path(app_settings.dataset_config_path).read_text(encoding="utf-8"))
         collector_version = raw_config.get("collectorVersion") or app_settings.collector_version
@@ -53,6 +55,7 @@ class ConfigLoader:
                     extra_params=item.get("extraParams") or {},
                 )
             )
+        # Keep CollectorVersion visible to downstream components that read env directly.
         os.environ.setdefault("CollectorVersion", collector_version)
         return datasets
 
