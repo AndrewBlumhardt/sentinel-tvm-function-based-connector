@@ -5,8 +5,9 @@ This folder contains deployment, permission, and local validation scripts used b
 ## Scripts
 
 - `deploy.ps1`
-  - Deploys infrastructure and function app settings from `infra/main.bicep`.
+  - Deploys infrastructure and function app settings from `../infra/main.bicep`.
   - Handles cloud context, login checks, resource group validation, and DCR mapping app settings.
+  - Writes per-dataset app settings in sortable format: `Enabled_<DatasetName>` and `DcrRuleId_<DatasetName>`.
 - `set-managed-identity-defender-permissions.ps1`
   - Grants Defender API application permissions to the Function App managed identity.
   - Optionally grants admin consent when `-GrantAdminConsent` is supplied.

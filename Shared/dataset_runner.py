@@ -43,7 +43,7 @@ class DatasetRunner:
         if not rule_id:
             raise ValueError(
                 f"No DCR rule ID configured for dataset '{dataset.name}'. "
-                "Set Dataset__<DatasetName>__dcrRuleId or LogsIngestion__RuleId."
+                "Set DcrRuleId_<DatasetName> or LogsIngestion__RuleId."
             )
 
         snapshot_context = create_snapshot_context()

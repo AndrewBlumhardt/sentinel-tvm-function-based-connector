@@ -62,20 +62,35 @@ class ConfigLoader:
             return path
         return self._root_path / path
 
-    def _get_env_name(self, dataset_name: str, property_name: str) -> str:
+    def _get_legacy_env_name(self, dataset_name: str, property_name: str) -> str:
         return f"Dataset__{dataset_name}__{property_name}"
 
+    def _get_new_env_name(self, dataset_name: str, property_name: str) -> str | None:
+        if property_name == "enabled":
+            return f"Enabled_{dataset_name}"
+        if property_name == "dcrRuleId":
+            return f"DcrRuleId_{dataset_name}"
+        return None
+
+    def _get_env_override(self, dataset_name: str, property_name: str, fallback: str | None = None) -> str | None:
+        new_name = self._get_new_env_name(dataset_name, property_name)
+        if new_name:
+            value = os.getenv(new_name)
+            if value is not None:
+                return value
+        return os.getenv(self._get_legacy_env_name(dataset_name, property_name), fallback)
+
     def _get_text_override(self, dataset_name: str, property_name: str, fallback: str | None) -> str | None:
-        return os.getenv(self._get_env_name(dataset_name, property_name), fallback)
+        return self._get_env_override(dataset_name, property_name, fallback)
 
     def _get_bool_override(self, dataset_name: str, fallback: bool) -> bool:
-        value = os.getenv(self._get_env_name(dataset_name, "enabled"))
+        value = self._get_env_override(dataset_name, "enabled")
         if value is None:
             return fallback
         return value.strip().lower() in {"1", "true", "yes", "on"}
 
     def _get_int_override(self, dataset_name: str, property_name: str, fallback: int) -> int:
-        value = os.getenv(self._get_env_name(dataset_name, property_name))
+        value = self._get_env_override(dataset_name, property_name)
         if value is None:
             return fallback
         return int(value)

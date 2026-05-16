@@ -112,7 +112,7 @@ az functionapp config appsettings list `
   --name $funcName `
   --resource-group $deployRg `
   --subscription $subId `
-  --query "[?name=='LogsIngestion__Endpoint' || ends_with(name,'__dcrRuleId')].[name,value]" -o table
+  --query "[?name=='LogsIngestion__Endpoint' || starts_with(name,'DcrRuleId_')].[name,value]" -o table
 
 az monitor app-insights query `
   --app $appiName `
@@ -154,8 +154,8 @@ Key app settings:
 - `DatasetConfigPath`
 - `LogsIngestion__Endpoint`
 - `LogsIngestion__RuleId`
-- `Dataset__<DatasetName>__dcrRuleId`
-- `Dataset__<DatasetName>__enabled`
+- `DcrRuleId_<DatasetName>`
+- `Enabled_<DatasetName>`
 - `Schedule_<DatasetName>`
 
 Timer format: `second minute hour day month day-of-week`
@@ -218,6 +218,6 @@ az account show --query "{subscription:id, tenant:tenantId}" -o table
 4. Ingestion still failing.
 
 ```powershell
-az functionapp config appsettings list --name <function-app-name> --resource-group <resource-group> --query "[?name=='LogsIngestion__Endpoint' || contains(name,'__dcrRuleId')]" -o table
+az functionapp config appsettings list --name <function-app-name> --resource-group <resource-group> --query "[?name=='LogsIngestion__Endpoint' || starts_with(name,'DcrRuleId_')]" -o table
 az role assignment list --assignee <function-mi-object-id> --scope /subscriptions/<sub-id>/resourceGroups/<deployment-rg> --query "[?roleDefinitionName=='Monitoring Metrics Publisher']" -o table
 ```

@@ -134,7 +134,7 @@ var commonAppSettings = [
   }
 ]
 var datasetToggleSettings = [for dataset in datasets: {
-  name: 'Dataset__${dataset.name}__enabled'
+  name: 'Enabled_${dataset.name}'
   value: string(bool(dataset.enabled))
 }]
 var mergedAppSettings = concat(commonAppSettings, datasetToggleSettings, scheduleAppSettings)

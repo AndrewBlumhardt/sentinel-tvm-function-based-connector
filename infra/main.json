@@ -77,7 +77,7 @@
         "name": "datasetToggleSettings",
         "count": "[length(variables('datasets'))]",
         "input": {
-          "name": "[format('Dataset__{0}__enabled', variables('datasets')[copyIndex('datasetToggleSettings')].name)]",
+          "name": "[format('Enabled_{0}', variables('datasets')[copyIndex('datasetToggleSettings')].name)]",
           "value": "[string(bool(variables('datasets')[copyIndex('datasetToggleSettings')].enabled))]"
         }
       }

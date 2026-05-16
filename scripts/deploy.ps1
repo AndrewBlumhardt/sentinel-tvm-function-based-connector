@@ -246,12 +246,12 @@ if (-not (Get-Command az -ErrorAction SilentlyContinue)) {
 
 Start-Stage -Name "Input and file validation"
 
-$templatePath = Join-Path $PSScriptRoot "infra\main.bicep"
+$templatePath = Join-Path $PSScriptRoot "..\infra\main.bicep"
 if (-not (Test-Path $templatePath)) {
     Stop-WithError "Template file not found at $templatePath"
 }
 
-$datasetConfigPath = Join-Path $PSScriptRoot "datasets.json"
+$datasetConfigPath = Join-Path $PSScriptRoot "..\datasets.json"
 if (-not (Test-Path $datasetConfigPath)) {
     Stop-WithError "Dataset config file not found at $datasetConfigPath"
 }
@@ -417,7 +417,7 @@ for ($i = 0; $i -lt $datasets.Count; $i++) {
         Stop-WithError "Calculated DCR index $ruleIndex for dataset '$($dataset.name)' exceeds available DCR count $($ruleIds.Count)."
     }
 
-    $datasetRuleSettings += "Dataset__$($dataset.name)__dcrRuleId=$($ruleIds[$ruleIndex])"
+    $datasetRuleSettings += "DcrRuleId_$($dataset.name)=$($ruleIds[$ruleIndex])"
 }
 
 Write-Host "Applying per-dataset DCR rule ID app settings to Function App '$resolvedFunctionAppName'..."
