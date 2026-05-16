@@ -37,48 +37,6 @@ var appInsightsName = '${namePrefix}-appi'
 var maxDataFlowsPerRule = 10
 var dcrChunkCount = int((length(datasets) + maxDataFlowsPerRule - 1) / maxDataFlowsPerRule)
 var dcrBatches = [for i in range(0, dcrChunkCount): take(skip(datasets, i * maxDataFlowsPerRule), maxDataFlowsPerRule)]
-var standardStreamColumns = [
-  {
-    name: 'TimeGenerated'
-    type: 'string'
-  }
-  {
-    name: 'SnapshotTime'
-    type: 'string'
-  }
-  {
-    name: 'RunId'
-    type: 'string'
-  }
-  {
-    name: 'DatasetName'
-    type: 'string'
-  }
-  {
-    name: 'SourceType'
-    type: 'string'
-  }
-  {
-    name: 'SourceName'
-    type: 'string'
-  }
-  {
-    name: 'DestinationTable'
-    type: 'string'
-  }
-  {
-    name: 'CollectionMode'
-    type: 'string'
-  }
-  {
-    name: 'CollectorVersion'
-    type: 'string'
-  }
-  {
-    name: 'PayloadJson'
-    type: 'string'
-  }
-]
 var scheduleAppSettings = [for dataset in datasets: {
   name: dataset.scheduleSetting
   value: scheduleDefaults[dataset.scheduleSetting] ?? '0 0 1 * * *'
@@ -231,7 +189,7 @@ resource dataCollectionRules 'Microsoft.Insights/dataCollectionRules@2023-03-11'
     dataCollectionEndpointId: dataCollectionEndpoint.id
     streamDeclarations: reduce(datasetBatch, {}, (state, dataset) => union(state, {
       '${dataset.dcrStreamName}': {
-        columns: standardStreamColumns
+        columns: dataset.columns
       }
     }))
     destinations: {
@@ -250,7 +208,7 @@ resource dataCollectionRules 'Microsoft.Insights/dataCollectionRules@2023-03-11'
         'sentinelWorkspace'
       ]
       outputStream: 'Custom-${dataset.destinationTable}'
-      transformKql: 'source | project TimeGenerated=todatetime(TimeGenerated), SnapshotTime=todatetime(SnapshotTime), RunId=tostring(RunId), DatasetName=tostring(DatasetName), SourceType=tostring(SourceType), SourceName=tostring(SourceName), DestinationTable=tostring(DestinationTable), CollectionMode=tostring(CollectionMode), CollectorVersion=tostring(CollectorVersion), PayloadJson=tostring(PayloadJson)'
+      transformKql: 'source'
     }]
   }
   dependsOn: [

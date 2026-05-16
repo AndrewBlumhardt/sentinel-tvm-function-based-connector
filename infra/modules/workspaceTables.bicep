@@ -17,48 +17,10 @@ resource customTables 'Microsoft.OperationalInsights/workspaces/tables@2023-09-0
     plan: 'Analytics'
     schema: {
       name: dataset.destinationTable
-      columns: [
-        {
-          name: 'TimeGenerated'
-          type: 'dateTime'
-        }
-        {
-          name: 'SnapshotTime'
-          type: 'dateTime'
-        }
-        {
-          name: 'RunId'
-          type: 'string'
-        }
-        {
-          name: 'DatasetName'
-          type: 'string'
-        }
-        {
-          name: 'SourceType'
-          type: 'string'
-        }
-        {
-          name: 'SourceName'
-          type: 'string'
-        }
-        {
-          name: 'DestinationTable'
-          type: 'string'
-        }
-        {
-          name: 'CollectionMode'
-          type: 'string'
-        }
-        {
-          name: 'CollectorVersion'
-          type: 'string'
-        }
-        {
-          name: 'PayloadJson'
-          type: 'string'
-        }
-      ]
+      columns: [for col in dataset.columns: {
+        name: col.name
+        type: replace(col.type, 'datetime', 'dateTime')
+      }]
     }
     retentionInDays: 30
     totalRetentionInDays: 30

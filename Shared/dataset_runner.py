@@ -1,12 +1,11 @@
 from __future__ import annotations
 
-import json
 from collections.abc import Iterator
 
 from Shared.batch_processor import iter_batches
 from Shared.dataset_registry import DatasetRegistry
 from Shared.json_flattener import JsonFlattener
-from Shared.metadata import create_snapshot_context, enrich_record
+from Shared.metadata import create_snapshot_context
 from Shared.models import AppSettings, DatasetConfig
 from Shared.telemetry_logger import get_logger
 
@@ -47,14 +46,7 @@ class DatasetRunner:
             )
 
         snapshot_context = create_snapshot_context()
-        metadata = {
-            **snapshot_context,
-            "SourceType": dataset.source_type,
-            "SourceName": dataset.normalized_source_name,
-            "DestinationTable": dataset.destination_table,
-            "CollectionMode": dataset.collection_mode,
-            "CollectorVersion": self._app_settings.collector_version,
-        }
+        metadata = snapshot_context
 
         ingested = 0
         pages = 0
@@ -88,9 +80,5 @@ class DatasetRunner:
         metadata: dict[str, object],
     ) -> dict[str, object]:
         flattened = self._flattener.flatten(record)
-        envelope = {
-            "TimeGenerated": metadata["SnapshotTime"],
-            "DatasetName": dataset.name,
-            "PayloadJson": json.dumps(flattened, ensure_ascii=True, separators=(",", ":")),
-        }
-        return enrich_record(envelope, metadata)
+        flattened["TimeGenerated"] = metadata["TimeGenerated"]
+        return flattened

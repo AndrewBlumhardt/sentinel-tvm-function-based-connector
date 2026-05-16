@@ -173,34 +173,21 @@ Recommended operating model:
 
 ## Table schema and added columns
 
-This connector writes a standardized envelope to each dataset table, then stores source-specific content in `PayloadJson`.
+Each dataset table uses a **native per-dataset schema** with columns that directly match the source API or Advanced Hunting response. There is no envelope or `PayloadJson` wrapper.
 
-Common columns written to all datasets:
+The only column added beyond the source fields is:
 
-- `TimeGenerated`
-- `SnapshotTime`
-- `RunId`
-- `DatasetName`
-- `SourceType`
-- `SourceName`
-- `DestinationTable`
-- `CollectionMode`
-- `CollectorVersion`
-- `PayloadJson`
+- `TimeGenerated` — ingestion timestamp (UTC ISO 8601), added by the collector at runtime
 
-Why these columns were added (likely):
+Column definitions for each dataset are declared in `Functions/datasets.json` under the `columns` array. These definitions drive both the Log Analytics workspace table schema (via `infra/modules/workspaceTables.bicep`) and the Data Collection Rule stream declarations (via `infra/main.bicep`).
 
-- easier cross-dataset troubleshooting and run correlation (`RunId`, `SnapshotTime`)
-- clearer provenance and routing metadata (`SourceType`, `SourceName`, `DestinationTable`)
-- stable ingestion and transformation contract while source schemas change over time (`PayloadJson`)
-- simpler scale-out deployment with one consistent DCR stream shape per dataset
+Column type conventions:
 
-How this compares to the official Sentinel reference connector:
+- `datetime` — stored as `datetime` in DCR stream declarations; Bicep converts to `dateTime` for the workspace table API
+- `string`, `boolean`, `int`, `real` — used as-is in both the DCR and workspace table
+- Arrays from the source API are serialized to JSON strings by the collector and stored as `string` columns
 
-- the reference implementation defines table-specific schemas with many source-native columns per table
-- this implementation intentionally normalizes around a common envelope and keeps source detail in `PayloadJson`
-
-So this behavior is not a direct one-to-one copy of the reference connector schema design; it appears to be an intentional evolution for portability, repeatable deployment, and easier multi-source operations.
+Schema source of truth: `Functions/datasets.json` — edit the `columns` array for each dataset to add, remove, or retype columns. A Bicep redeploy will update the workspace tables and DCR stream declarations automatically.
 
 ## Configuration highlights
 
