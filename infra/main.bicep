@@ -1,6 +1,6 @@
 targetScope = 'resourceGroup'
 
-var datasetConfig = loadJsonContent('../datasets.json')
+var datasetConfig = loadJsonContent('../Functions/datasets.json')
 var datasets = datasetConfig.datasets
 var scheduleDefaults = {
   Schedule_DeviceTvmSoftwareInventory: '0 0 1 * * *'
@@ -110,7 +110,7 @@ var commonAppSettings = [
   }
   {
     name: 'DatasetConfigPath'
-    value: 'datasets.json'
+    value: 'Functions/datasets.json'
   }
   {
     name: 'CollectorVersion'

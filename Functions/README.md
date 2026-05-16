@@ -10,6 +10,7 @@ This folder contains the Azure Function timer-trigger entry points.
 
 ## Files
 
+- `datasets.json`: dataset catalog and runtime defaults.
 - `common.py`: shared helper that builds timer-trigger blueprints to avoid repeated boilerplate.
 - `__init__.py`: package marker.
 
@@ -50,4 +51,4 @@ This folder contains the Azure Function timer-trigger entry points.
 ## Notes
 
 - Business logic does not live here; it is centralized in `Shared/dataset_runner.py`.
-- To add a new dataset, create a new timer trigger module and add a matching dataset entry in `datasets.json`.
+- To add a new dataset, create a new timer trigger module and add a matching dataset entry in `Functions/datasets.json`.

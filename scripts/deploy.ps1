@@ -251,7 +251,7 @@ if (-not (Test-Path $templatePath)) {
     Stop-WithError "Template file not found at $templatePath"
 }
 
-$datasetConfigPath = Join-Path $PSScriptRoot "..\datasets.json"
+$datasetConfigPath = Join-Path $PSScriptRoot "..\Functions\datasets.json"
 if (-not (Test-Path $datasetConfigPath)) {
     Stop-WithError "Dataset config file not found at $datasetConfigPath"
 }

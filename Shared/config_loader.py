@@ -13,7 +13,7 @@ class ConfigLoader:
 
     def load_app_settings(self) -> AppSettings:
         return AppSettings(
-            dataset_config_path=os.getenv("DatasetConfigPath", "datasets.json"),
+            dataset_config_path=os.getenv("DatasetConfigPath", "Functions/datasets.json"),
             collector_version=os.getenv("CollectorVersion", "0.1.0"),
             logs_ingestion_endpoint=os.getenv("LogsIngestion__Endpoint", ""),
             logs_ingestion_rule_id=os.getenv("LogsIngestion__RuleId", ""),

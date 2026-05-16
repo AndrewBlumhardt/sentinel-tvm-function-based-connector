@@ -28,13 +28,29 @@ Running both lets you compare coverage and keep what works best for your environ
 
 Use this exact order.
 
-1. Open PowerShell in the local repo folder.
-2. Sign in and verify cloud/subscription.
-3. Run `scripts/deploy.ps1`.
-4. Run `scripts/set-managed-identity-defender-permissions.ps1`.
-5. Run post-deployment validation.
+1. Clone the repo locally and open PowerShell in the repo folder.
+2. Install local Python dependencies and create local settings.
+3. Sign in and verify cloud/subscription.
+4. Run `scripts/deploy.ps1`.
+5. Run `scripts/set-managed-identity-defender-permissions.ps1`.
+6. Run post-deployment validation.
 
-### 1) Sign in and verify context
+### 1) Clone locally and open PowerShell
+
+```powershell
+git clone https://github.com/AndrewBlumhardt/sentinel-tvm-function-based-connector.git
+Set-Location .\sentinel-tvm-function-based-connector
+```
+
+### 2) Prepare local dependencies and settings
+
+```powershell
+python -m venv .venv
+.\.venv\Scripts\python -m pip install -r requirements.txt
+Copy-Item local.settings.sample.json local.settings.json
+```
+
+### 3) Sign in and verify context
 
 ```powershell
 az login
@@ -44,7 +60,7 @@ az account show --query "{subscription:id, tenant:tenantId, user:user.name}" -o 
 
 For GCC High, either set cloud to `AzureUSGovernment` first, or pass `-CloudName AzureUSGovernment` to both scripts.
 
-### 2) Deploy infrastructure and function app
+### 4) Deploy infrastructure and function app
 
 ```powershell
 ./scripts/deploy.ps1 `
@@ -55,7 +71,7 @@ For GCC High, either set cloud to `AzureUSGovernment` first, or pass `-CloudName
   -CloudName AzureUSGovernment
 ```
 
-### 3) Grant managed identity permissions
+### 5) Grant managed identity permissions
 
 ```powershell
 ./scripts/set-managed-identity-defender-permissions.ps1 `
@@ -66,7 +82,7 @@ For GCC High, either set cloud to `AzureUSGovernment` first, or pass `-CloudName
   -GrantAdminConsent
 ```
 
-### 4) Confirm deployed resources
+### 6) Confirm deployed resources
 
 <p align="center">
   <img src="images/resources.png" alt="Example deployed resources in Azure portal" width="75%" />
@@ -123,7 +139,7 @@ az monitor app-insights query `
 
 ## Dataset coverage
 
-Detailed per-dataset mappings are defined in `datasets.json`.
+Detailed per-dataset mappings are defined in `Functions/datasets.json`.
 
 README keeps this section intentionally high-level:
 
@@ -131,7 +147,7 @@ README keeps this section intentionally high-level:
 - Defender REST API datasets: optional (mostly disabled by default).
 - NIST enrichment datasets: optional.
 
-If you need table-level mapping details, use `datasets.json` as the source of truth.
+If you need table-level mapping details, use `Functions/datasets.json` as the source of truth.
 
 ## Source comparison and operating model
 
@@ -147,7 +163,7 @@ Recommended operating model:
 
 ## Configuration highlights
 
-Primary configuration is in `datasets.json` and Function App settings.
+Primary configuration is in `Functions/datasets.json` and Function App settings.
 
 Key app settings:
 
@@ -175,24 +191,44 @@ Permission model:
 
 Both are required for end-to-end ingestion.
 
-## Optional local setup
+## App setting migration
 
-Use local setup only if you are developing/debugging function code.
+Use the migration script to rename existing legacy dataset app setting keys in a deployed Function App.
 
 ```powershell
-python -m venv .venv
-.\.venv\Scripts\python -m pip install -r requirements.txt
-Copy-Item local.settings.sample.json local.settings.json
+./scripts/migrate-dataset-setting-names.ps1 `
+  -FunctionAppName sentinel-tvm-connector-func `
+  -ResourceGroupName <deployment-resource-group>
 ```
+
+Apply changes and optionally remove legacy keys after validation:
+
+```powershell
+./scripts/migrate-dataset-setting-names.ps1 `
+  -FunctionAppName sentinel-tvm-connector-func `
+  -ResourceGroupName <deployment-resource-group> `
+  -Apply `
+  -RemoveLegacy
+```
+
+## Required root files
+
+These files stay in the repo root because Azure Functions tooling and packaging expect them there:
+
+- `function_app.py`
+- `host.json`
+- `requirements.txt`
+- `pyrightconfig.json`
+- `local.settings.sample.json`
 
 ## Repo layout
 
 - `function_app.py`: Function app entry point.
-- `datasets.json`: Dataset catalog and defaults.
+- `Functions/datasets.json`: Dataset catalog and defaults.
 - `Functions/`: Timer trigger entry points.
 - `Shared/`: Shared ingestion runtime.
 - `infra/`: Bicep/ARM definitions.
-- `scripts/`: Deployment, permissions, and local validation scripts.
+- `scripts/`: Deployment, permissions, migration, and local validation scripts.
 - `images/`: Screenshots and diagrams.
 
 ## Troubleshooting

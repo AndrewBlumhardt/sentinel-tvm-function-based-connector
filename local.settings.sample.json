@@ -3,7 +3,7 @@
   "Values": {
     "AzureWebJobsStorage": "UseDevelopmentStorage=true",
     "FUNCTIONS_WORKER_RUNTIME": "python",
-    "DatasetConfigPath": "datasets.json",
+    "DatasetConfigPath": "Functions/datasets.json",
     "LogsIngestion__Endpoint": "https://your-dce-name.region-1.ingest.monitor.azure.com",
     "LogsIngestion__RuleId": "00000000-0000-0000-0000-000000000000",
     "ManagedIdentity__ClientId": "",
