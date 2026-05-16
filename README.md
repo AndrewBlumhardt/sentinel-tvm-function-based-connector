@@ -29,11 +29,10 @@ Running both lets you compare coverage and keep what works best for your environ
 Use this exact order.
 
 1. Clone the repo locally and open PowerShell in the repo folder.
-2. Install local Python dependencies and create local settings.
-3. Sign in and verify cloud/subscription.
-4. Run `scripts/deploy.ps1`.
-5. Run `scripts/set-managed-identity-defender-permissions.ps1`.
-6. Run post-deployment validation.
+2. Sign in and verify cloud/subscription.
+3. Run `scripts/deploy.ps1`.
+4. Run `scripts/set-managed-identity-defender-permissions.ps1`.
+5. Run post-deployment validation.
 
 ### 1) Clone locally and open PowerShell
 
@@ -42,15 +41,7 @@ git clone https://github.com/AndrewBlumhardt/sentinel-tvm-function-based-connect
 Set-Location .\sentinel-tvm-function-based-connector
 ```
 
-### 2) Prepare local dependencies and settings
-
-```powershell
-python -m venv .venv
-.\.venv\Scripts\python -m pip install -r requirements.txt
-Copy-Item local.settings.sample.json local.settings.json
-```
-
-### 3) Sign in and verify context
+### 2) Sign in and verify context
 
 ```powershell
 az login
@@ -60,7 +51,7 @@ az account show --query "{subscription:id, tenant:tenantId, user:user.name}" -o 
 
 For GCC High, either set cloud to `AzureUSGovernment` first, or pass `-CloudName AzureUSGovernment` to both scripts.
 
-### 4) Deploy infrastructure and function app
+### 3) Deploy infrastructure and function app
 
 ```powershell
 ./scripts/deploy.ps1 `
@@ -71,7 +62,7 @@ For GCC High, either set cloud to `AzureUSGovernment` first, or pass `-CloudName
   -CloudName AzureUSGovernment
 ```
 
-### 5) Grant managed identity permissions
+### 4) Grant managed identity permissions
 
 ```powershell
 ./scripts/set-managed-identity-defender-permissions.ps1 `
@@ -82,7 +73,7 @@ For GCC High, either set cloud to `AzureUSGovernment` first, or pass `-CloudName
   -GrantAdminConsent
 ```
 
-### 6) Confirm deployed resources
+### 5) Confirm deployed resources
 
 <p align="center">
   <img src="images/resources.png" alt="Example deployed resources in Azure portal" width="75%" />
@@ -96,6 +87,16 @@ Expected core resources:
 - `sentinel-tvm-connector-func` (Function App)
 - `sentinel-tvm-plan` (App Service plan)
 - `stg...` (storage account)
+
+## Optional local development setup
+
+You only need this if you plan to run or debug the function app locally.
+
+```powershell
+python -m venv .venv
+.\.venv\Scripts\python -m pip install -r requirements.txt
+Copy-Item local.settings.sample.json local.settings.json
+```
 
 ## Post-deployment parameters and validation
 
