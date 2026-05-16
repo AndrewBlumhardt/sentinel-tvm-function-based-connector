@@ -111,6 +111,31 @@ function Invoke-AzCli {
     return $output
 }
 
+function Resolve-FuncCommand {
+    $funcCommand = Get-Command func -ErrorAction SilentlyContinue
+    if ($funcCommand) {
+        return $funcCommand.Source
+    }
+
+    $fallbackPaths = @(
+        "C:\Program Files\Microsoft\Azure Functions Core Tools\func.exe",
+        (Join-Path $env:ProgramFiles "Microsoft\Azure Functions Core Tools\func.exe")
+    ) | Select-Object -Unique
+
+    foreach ($path in $fallbackPaths) {
+        if (-not [string]::IsNullOrWhiteSpace($path) -and (Test-Path $path)) {
+            $funcDir = Split-Path -Path $path -Parent
+            if (-not (($env:Path -split ';') -contains $funcDir)) {
+                $env:Path = "$funcDir;$env:Path"
+            }
+
+            return $path
+        }
+    }
+
+    return $null
+}
+
 function Test-FunctionAppNameConflict {
     param(
         [Parameter(Mandatory = $true)]
@@ -245,8 +270,9 @@ if (-not (Get-Command az -ErrorAction SilentlyContinue)) {
     Stop-WithError "Azure CLI (az) is required but was not found in PATH."
 }
 
-if (-not (Get-Command func -ErrorAction SilentlyContinue)) {
-    Stop-WithError "Azure Functions Core Tools (func) is required but was not found in PATH. Install from: https://learn.microsoft.com/azure/azure-functions/functions-run-local"
+$script:FuncCommand = Resolve-FuncCommand
+if (-not $script:FuncCommand) {
+    Stop-WithError "Azure Functions Core Tools (func) is required but was not found in PATH or the standard install location. Install from: https://learn.microsoft.com/azure/azure-functions/functions-run-local"
 }
 
 Start-Stage -Name "Input and file validation"
@@ -475,7 +501,7 @@ $functionProjectRoot = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
 Write-Host "Publishing function code from '$functionProjectRoot' to '$resolvedFunctionAppName'..."
 Push-Location $functionProjectRoot
 try {
-    & func azure functionapp publish $resolvedFunctionAppName --python
+    & $script:FuncCommand azure functionapp publish $resolvedFunctionAppName --python
     if ($LASTEXITCODE -ne 0) {
         Stop-WithError "Function code deployment failed. See output above for details."
     }
