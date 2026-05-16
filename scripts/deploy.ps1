@@ -501,7 +501,7 @@ $functionProjectRoot = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
 Write-Host "Publishing function code from '$functionProjectRoot' to '$resolvedFunctionAppName'..."
 Push-Location $functionProjectRoot
 try {
-    & $script:FuncCommand azure functionapp publish $resolvedFunctionAppName --python
+    & $script:FuncCommand azure functionapp publish $resolvedFunctionAppName --python --build local
     if ($LASTEXITCODE -ne 0) {
         Stop-WithError "Function code deployment failed. See output above for details."
     }

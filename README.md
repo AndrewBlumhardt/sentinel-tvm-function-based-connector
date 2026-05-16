@@ -73,6 +73,8 @@ $env:Path = "C:\Program Files\Microsoft\Azure Functions Core Tools;" + $env:Path
 func --version
 ```
 
+The deployed Function App currently uses Python 3.11. For the cleanest publish experience, use a Python 3.11 virtual environment before running `deploy.ps1`.
+
 If winget is not available, use the 64-bit MSI installer:
 <https://go.microsoft.com/fwlink/?linkid=2174087>
 
@@ -147,7 +149,7 @@ Expected core resources:
 You only need this if you plan to run or debug the function app locally.
 
 ```powershell
-python -m venv .venv
+py -3.11 -m venv .venv
 .\.venv\Scripts\python -m pip install -r requirements.txt
 Copy-Item local.settings.sample.json local.settings.json
 ```
