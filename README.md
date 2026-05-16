@@ -252,6 +252,14 @@ These files stay in the repo root because Azure Functions tooling and packaging 
 - `pyrightconfig.json`
 - `local.settings.sample.json`
 
+Why each should stay in root:
+
+- `function_app.py`: loaded as the Python v2 function app entry point during local host startup and deployment packaging.
+- `host.json`: global Azure Functions host configuration file; the host resolves it from the app root.
+- `requirements.txt`: used by build/deploy tooling to install Python dependencies from the project root.
+- `pyrightconfig.json`: default Pyright/Pylance project configuration location for workspace-level analysis.
+- `local.settings.sample.json`: canonical template for creating `local.settings.json` with the documented root-level copy command.
+
 ## Repo layout
 
 - `function_app.py`: Function app entry point.
