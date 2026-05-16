@@ -500,9 +500,14 @@ Start-Stage -Name "Function code deployment"
 $functionProjectRoot = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
 Write-Host "Packaging function code from '$functionProjectRoot' for '$resolvedFunctionAppName'..."
 $packagePath = Join-Path ([System.IO.Path]::GetTempPath()) ("{0}-{1}.zip" -f $resolvedFunctionAppName, [guid]::NewGuid().ToString('N'))
+$originalFunctionsWorkerRuntime = $env:FUNCTIONS_WORKER_RUNTIME
 Push-Location $functionProjectRoot
 try {
-    & $script:FuncCommand pack --output $packagePath
+    if ([string]::IsNullOrWhiteSpace($env:FUNCTIONS_WORKER_RUNTIME)) {
+        $env:FUNCTIONS_WORKER_RUNTIME = "python"
+    }
+
+    & $script:FuncCommand pack . --output $packagePath
     if ($LASTEXITCODE -ne 0) {
         Stop-WithError "Function package creation failed. See output above for details."
     }
@@ -522,6 +527,7 @@ try {
 }
 finally {
     Pop-Location
+    $env:FUNCTIONS_WORKER_RUNTIME = $originalFunctionsWorkerRuntime
     if (Test-Path $packagePath) {
         Remove-Item $packagePath -Force -ErrorAction SilentlyContinue
     }
