@@ -76,6 +76,18 @@ Required access for this step: `Contributor` on the deployment resource group.
   -SubscriptionId <subscription-id>
 ```
 
+By default, `deploy.ps1` leaves the Function App in a stopped state so you can finish credentials/permissions before any timer triggers run.
+
+When ready to test:
+
+```powershell
+az functionapp start --name sentinel-tvm-connector-func --resource-group <deployment-resource-group>
+# or
+az functionapp restart --name sentinel-tvm-connector-func --resource-group <deployment-resource-group>
+```
+
+If you want it left running immediately after deploy, add `-KeepFunctionRunning` to `deploy.ps1`.
+
 > **Azure Government (GCC High):** Add `-CloudName AzureUSGovernment` to the command above.
 
 ### 4) Grant managed identity permissions

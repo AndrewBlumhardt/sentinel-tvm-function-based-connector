@@ -16,7 +16,8 @@ param(
     [string]$SubscriptionId = "",
     [string]$TenantId = "",
 
-    [switch]$SkipLogin
+    [switch]$SkipLogin,
+    [switch]$KeepFunctionRunning
 )
 
 $ErrorActionPreference = "Stop"
@@ -481,6 +482,24 @@ try {
 }
 finally {
     Pop-Location
+}
+
+Start-Stage -Name "Function app state"
+if ($KeepFunctionRunning) {
+    Write-Host "Keeping Function App '$resolvedFunctionAppName' running because -KeepFunctionRunning was provided."
+}
+else {
+    Write-Host "Stopping Function App '$resolvedFunctionAppName' so credentials and permissions can be finalized before test runs..."
+    Invoke-AzCli -Args @(
+        "functionapp", "stop",
+        "--name", $resolvedFunctionAppName,
+        "--resource-group", $ResourceGroupName,
+        "-o", "none"
+    ) | Out-Null
+
+    Write-Host "Function App '$resolvedFunctionAppName' is stopped."
+    Write-Host "When ready to test, start it with: az functionapp start --name $resolvedFunctionAppName --resource-group $ResourceGroupName"
+    Write-Host "To force a clean restart later: az functionapp restart --name $resolvedFunctionAppName --resource-group $ResourceGroupName"
 }
 
 Start-Stage -Name "Completed"
