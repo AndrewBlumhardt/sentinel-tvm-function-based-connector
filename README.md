@@ -58,6 +58,17 @@ Set-Location .\sentinel-tvm-function-based-connector
 
 > **Prerequisites:** [Azure CLI](https://learn.microsoft.com/cli/azure/install-azure-cli) and [Azure Functions Core Tools](https://learn.microsoft.com/azure/azure-functions/functions-run-local) (`func`) must both be installed and on your PATH. `deploy.ps1` checks for both at startup.
 
+If `func` is missing on Windows, install it with winget:
+
+```powershell
+winget install Microsoft.AzureFunctionsCoreTools --source winget
+$env:Path = [System.Environment]::GetEnvironmentVariable("Path","Machine") + ";" + [System.Environment]::GetEnvironmentVariable("Path","User")
+func --version
+```
+
+If winget is not available, use the 64-bit MSI installer:
+<https://go.microsoft.com/fwlink/?linkid=2174087>
+
 ```powershell
 az login
 az cloud show --query name -o tsv
