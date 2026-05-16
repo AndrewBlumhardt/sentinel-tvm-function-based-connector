@@ -161,6 +161,37 @@ Recommended operating model:
 2. Compare the resulting custom tables in Sentinel.
 3. Disable the source family you do not need.
 
+## Table schema and added columns
+
+This connector writes a standardized envelope to each dataset table, then stores source-specific content in `PayloadJson`.
+
+Common columns written to all datasets:
+
+- `TimeGenerated`
+- `SnapshotTime`
+- `RunId`
+- `DatasetName`
+- `SourceType`
+- `SourceName`
+- `DestinationTable`
+- `CollectionMode`
+- `CollectorVersion`
+- `PayloadJson`
+
+Why these columns were added (likely):
+
+- easier cross-dataset troubleshooting and run correlation (`RunId`, `SnapshotTime`)
+- clearer provenance and routing metadata (`SourceType`, `SourceName`, `DestinationTable`)
+- stable ingestion and transformation contract while source schemas change over time (`PayloadJson`)
+- simpler scale-out deployment with one consistent DCR stream shape per dataset
+
+How this compares to the official Sentinel reference connector:
+
+- the reference implementation defines table-specific schemas with many source-native columns per table
+- this implementation intentionally normalizes around a common envelope and keeps source detail in `PayloadJson`
+
+So this behavior is not a direct one-to-one copy of the reference connector schema design; it appears to be an intentional evolution for portability, repeatable deployment, and easier multi-source operations.
+
 ## Configuration highlights
 
 Primary configuration is in `Functions/datasets.json` and Function App settings.
