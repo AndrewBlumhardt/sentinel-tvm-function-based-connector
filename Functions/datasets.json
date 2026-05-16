@@ -346,7 +346,7 @@
     },
     {
       "name": "ApiMachines",
-      "enabled": false,
+      "enabled": true,
       "sourceType": "DefenderRestApi",
       "endpoint": "/api/machines",
       "destinationTable": "ApiMachines_CL",
@@ -379,7 +379,7 @@
     },
     {
       "name": "ApiSoftwareInventoryByMachine",
-      "enabled": false,
+      "enabled": true,
       "sourceType": "DefenderRestApi",
       "endpoint": "/api/machines/SoftwareInventoryByMachine",
       "destinationTable": "ApiSoftwareInventoryByMachine_CL",
@@ -412,7 +412,7 @@
     },
     {
       "name": "ApiNonCpeSoftwareInventory",
-      "enabled": false,
+      "enabled": true,
       "sourceType": "DefenderRestApi",
       "endpoint": "/api/SoftwareInventories/NonCpeSoftwareInventory",
       "destinationTable": "ApiNonCpeSoftwareInventory_CL",
@@ -437,7 +437,7 @@
     },
     {
       "name": "ApiRecommendations",
-      "enabled": false,
+      "enabled": true,
       "sourceType": "DefenderRestApi",
       "endpoint": "/api/recommendations",
       "destinationTable": "ApiRecommendations_CL",
@@ -472,7 +472,7 @@
     },
     {
       "name": "ApiSecureConfigurationAssessmentByMachine",
-      "enabled": false,
+      "enabled": true,
       "sourceType": "DefenderRestApi",
       "endpoint": "/api/machines/SecureConfigurationsAssessmentByMachine",
       "destinationTable": "ApiSecureConfigurationAssessmentByMachine_CL",
@@ -500,7 +500,7 @@
     },
     {
       "name": "ApiVulnerabilitiesCatalog",
-      "enabled": false,
+      "enabled": true,
       "sourceType": "DefenderRestApi",
       "endpoint": "/api/vulnerabilities",
       "destinationTable": "ApiVulnerabilitiesCatalog_CL",
@@ -534,7 +534,7 @@
     },
     {
       "name": "ApiBrowserExtensionsInventory",
-      "enabled": false,
+      "enabled": true,
       "sourceType": "DefenderRestApi",
       "endpoint": "/api/BrowserExtensionsInventories",
       "destinationTable": "ApiBrowserExtensionsInventory_CL",
@@ -561,7 +561,7 @@
     },
     {
       "name": "ApiBrowserExtensionPermissions",
-      "enabled": false,
+      "enabled": true,
       "sourceType": "DefenderRestApi",
       "endpoint": "/api/BrowserExtensionsPermissions",
       "destinationTable": "ApiBrowserExtensionPermissions_CL",
@@ -586,7 +586,7 @@
     },
     {
       "name": "ApiCertificateInventoryAssessment",
-      "enabled": false,
+      "enabled": true,
       "sourceType": "DefenderRestApi",
       "endpoint": "/api/CertificateInventories",
       "destinationTable": "ApiCertificateInventoryAssessment_CL",
@@ -615,7 +615,7 @@
     },
     {
       "name": "ApiHardwareFirmwareAssessment",
-      "enabled": false,
+      "enabled": true,
       "sourceType": "DefenderRestApi",
       "endpoint": "/api/HardwareFirmwareAssessments",
       "destinationTable": "ApiHardwareFirmwareAssessment_CL",
@@ -638,7 +638,7 @@
     },
     {
       "name": "NistCveCatalog",
-      "enabled": false,
+      "enabled": true,
       "sourceType": "NistApi",
       "endpoint": "https://services.nvd.nist.gov/rest/json/cves/2.0",
       "destinationTable": "NistCveCatalog_CL",
@@ -670,7 +670,7 @@
     },
     {
       "name": "NistCpeConfigurations",
-      "enabled": false,
+      "enabled": true,
       "sourceType": "NistApi",
       "endpoint": "https://services.nvd.nist.gov/rest/json/cves/2.0",
       "destinationTable": "NistCpeConfigurations_CL",

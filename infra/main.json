@@ -5,7 +5,7 @@
     "_generator": {
       "name": "bicep",
       "version": "0.43.8.12551",
-      "templateHash": "7527066973196004590"
+      "templateHash": "3316147151544806268"
     }
   },
   "parameters": {
@@ -877,7 +877,7 @@
         },
         {
           "name": "ApiMachines",
-          "enabled": false,
+          "enabled": true,
           "sourceType": "DefenderRestApi",
           "endpoint": "/api/machines",
           "destinationTable": "ApiMachines_CL",
@@ -967,7 +967,7 @@
         },
         {
           "name": "ApiSoftwareInventoryByMachine",
-          "enabled": false,
+          "enabled": true,
           "sourceType": "DefenderRestApi",
           "endpoint": "/api/machines/SoftwareInventoryByMachine",
           "destinationTable": "ApiSoftwareInventoryByMachine_CL",
@@ -1057,7 +1057,7 @@
         },
         {
           "name": "ApiNonCpeSoftwareInventory",
-          "enabled": false,
+          "enabled": true,
           "sourceType": "DefenderRestApi",
           "endpoint": "/api/SoftwareInventories/NonCpeSoftwareInventory",
           "destinationTable": "ApiNonCpeSoftwareInventory_CL",
@@ -1115,7 +1115,7 @@
         },
         {
           "name": "ApiRecommendations",
-          "enabled": false,
+          "enabled": true,
           "sourceType": "DefenderRestApi",
           "endpoint": "/api/recommendations",
           "destinationTable": "ApiRecommendations_CL",
@@ -1213,7 +1213,7 @@
         },
         {
           "name": "ApiSecureConfigurationAssessmentByMachine",
-          "enabled": false,
+          "enabled": true,
           "sourceType": "DefenderRestApi",
           "endpoint": "/api/machines/SecureConfigurationsAssessmentByMachine",
           "destinationTable": "ApiSecureConfigurationAssessmentByMachine_CL",
@@ -1283,7 +1283,7 @@
         },
         {
           "name": "ApiVulnerabilitiesCatalog",
-          "enabled": false,
+          "enabled": true,
           "sourceType": "DefenderRestApi",
           "endpoint": "/api/vulnerabilities",
           "destinationTable": "ApiVulnerabilitiesCatalog_CL",
@@ -1377,7 +1377,7 @@
         },
         {
           "name": "ApiBrowserExtensionsInventory",
-          "enabled": false,
+          "enabled": true,
           "sourceType": "DefenderRestApi",
           "endpoint": "/api/BrowserExtensionsInventories",
           "destinationTable": "ApiBrowserExtensionsInventory_CL",
@@ -1443,7 +1443,7 @@
         },
         {
           "name": "ApiBrowserExtensionPermissions",
-          "enabled": false,
+          "enabled": true,
           "sourceType": "DefenderRestApi",
           "endpoint": "/api/BrowserExtensionsPermissions",
           "destinationTable": "ApiBrowserExtensionPermissions_CL",
@@ -1501,7 +1501,7 @@
         },
         {
           "name": "ApiCertificateInventoryAssessment",
-          "enabled": false,
+          "enabled": true,
           "sourceType": "DefenderRestApi",
           "endpoint": "/api/CertificateInventories",
           "destinationTable": "ApiCertificateInventoryAssessment_CL",
@@ -1575,7 +1575,7 @@
         },
         {
           "name": "ApiHardwareFirmwareAssessment",
-          "enabled": false,
+          "enabled": true,
           "sourceType": "DefenderRestApi",
           "endpoint": "/api/HardwareFirmwareAssessments",
           "destinationTable": "ApiHardwareFirmwareAssessment_CL",
@@ -1625,7 +1625,7 @@
         },
         {
           "name": "NistCveCatalog",
-          "enabled": false,
+          "enabled": true,
           "sourceType": "NistApi",
           "endpoint": "https://services.nvd.nist.gov/rest/json/cves/2.0",
           "destinationTable": "NistCveCatalog_CL",
@@ -1705,7 +1705,7 @@
         },
         {
           "name": "NistCpeConfigurations",
-          "enabled": false,
+          "enabled": true,
           "sourceType": "NistApi",
           "endpoint": "https://services.nvd.nist.gov/rest/json/cves/2.0",
           "destinationTable": "NistCpeConfigurations_CL",
@@ -1764,31 +1764,31 @@
     "datasetConfig": "[variables('$fxv#0')]",
     "datasets": "[variables('datasetConfig').datasets]",
     "scheduleDefaults": {
-      "Schedule_DeviceTvmSoftwareInventory": "0 0 1 * * *",
-      "Schedule_DeviceTvmSoftwareVulnerabilities": "0 10 1 * * *",
-      "Schedule_DeviceTvmSoftwareVulnerabilitiesKB": "0 20 1 * * *",
-      "Schedule_DeviceTvmSecureConfigurationAssessment": "0 30 1 * * *",
-      "Schedule_DeviceTvmSecureConfigurationAssessmentKB": "0 40 1 * * *",
-      "Schedule_DeviceTvmSoftwareEvidenceBeta": "0 50 1 * * *",
-      "Schedule_DeviceTvmBrowserExtensions": "0 0 2 * * *",
-      "Schedule_DeviceTvmBrowserExtensionsKB": "0 10 2 * * *",
-      "Schedule_DeviceTvmCertificateInfo": "0 20 2 * * *",
-      "Schedule_DeviceTvmHardwareFirmware": "0 30 2 * * *",
-      "Schedule_DeviceTvmInfoGathering": "0 40 2 * * *",
-      "Schedule_DeviceTvmInfoGatheringKB": "0 50 2 * * *",
-      "Schedule_ApiSoftwareVulnerabilitiesByMachine": "0 15 1 * * *",
-      "Schedule_ApiMachines": "0 0 3 * * *",
-      "Schedule_ApiSoftwareInventoryByMachine": "0 10 3 * * *",
-      "Schedule_ApiNonCpeSoftwareInventory": "0 20 3 * * *",
-      "Schedule_ApiRecommendations": "0 30 3 * * *",
-      "Schedule_ApiSecureConfigurationAssessmentByMachine": "0 40 3 * * *",
-      "Schedule_ApiVulnerabilitiesCatalog": "0 50 3 * * *",
-      "Schedule_ApiBrowserExtensionsInventory": "0 0 4 * * *",
-      "Schedule_ApiBrowserExtensionPermissions": "0 10 4 * * *",
-      "Schedule_ApiCertificateInventoryAssessment": "0 20 4 * * *",
-      "Schedule_ApiHardwareFirmwareAssessment": "0 30 4 * * *",
-      "Schedule_NistCveCatalog": "0 0 5 * * *",
-      "Schedule_NistCpeConfigurations": "0 30 5 * * *"
+      "Schedule_DeviceTvmSoftwareInventory": "0 0,30 * * * *",
+      "Schedule_DeviceTvmSoftwareVulnerabilities": "0 0,30 * * * *",
+      "Schedule_DeviceTvmSoftwareVulnerabilitiesKB": "0 0,30 * * * *",
+      "Schedule_DeviceTvmSecureConfigurationAssessment": "0 0,30 * * * *",
+      "Schedule_DeviceTvmSecureConfigurationAssessmentKB": "0 0,30 * * * *",
+      "Schedule_DeviceTvmSoftwareEvidenceBeta": "0 0,30 * * * *",
+      "Schedule_DeviceTvmBrowserExtensions": "0 0,30 * * * *",
+      "Schedule_DeviceTvmBrowserExtensionsKB": "0 0,30 * * * *",
+      "Schedule_DeviceTvmCertificateInfo": "0 0,30 * * * *",
+      "Schedule_DeviceTvmHardwareFirmware": "0 0,30 * * * *",
+      "Schedule_DeviceTvmInfoGathering": "0 0,30 * * * *",
+      "Schedule_DeviceTvmInfoGatheringKB": "0 0,30 * * * *",
+      "Schedule_ApiSoftwareVulnerabilitiesByMachine": "0 0,30 * * * *",
+      "Schedule_ApiMachines": "0 0,30 * * * *",
+      "Schedule_ApiSoftwareInventoryByMachine": "0 0,30 * * * *",
+      "Schedule_ApiNonCpeSoftwareInventory": "0 0,30 * * * *",
+      "Schedule_ApiRecommendations": "0 0,30 * * * *",
+      "Schedule_ApiSecureConfigurationAssessmentByMachine": "0 0,30 * * * *",
+      "Schedule_ApiVulnerabilitiesCatalog": "0 0,30 * * * *",
+      "Schedule_ApiBrowserExtensionsInventory": "0 0,30 * * * *",
+      "Schedule_ApiBrowserExtensionPermissions": "0 0,30 * * * *",
+      "Schedule_ApiCertificateInventoryAssessment": "0 0,30 * * * *",
+      "Schedule_ApiHardwareFirmwareAssessment": "0 0,30 * * * *",
+      "Schedule_NistCveCatalog": "0 0,30 * * * *",
+      "Schedule_NistCpeConfigurations": "0 0,30 * * * *"
     },
     "locationName": "[if(empty(parameters('location')), resourceGroup().location, parameters('location'))]",
     "planName": "[format('{0}-plan', parameters('namePrefix'))]",
