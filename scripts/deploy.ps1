@@ -244,6 +244,10 @@ if (-not (Get-Command az -ErrorAction SilentlyContinue)) {
     Stop-WithError "Azure CLI (az) is required but was not found in PATH."
 }
 
+if (-not (Get-Command func -ErrorAction SilentlyContinue)) {
+    Stop-WithError "Azure Functions Core Tools (func) is required but was not found in PATH. Install from: https://learn.microsoft.com/azure/azure-functions/functions-run-local"
+}
+
 Start-Stage -Name "Input and file validation"
 
 $templatePath = Join-Path $PSScriptRoot "..\infra\main.bicep"
@@ -462,6 +466,21 @@ else {
     else {
         Write-Host "'Monitoring Metrics Publisher' already assigned on resource group scope '$rgScope' or awaiting RBAC propagation."
     }
+}
+
+Start-Stage -Name "Function code deployment"
+
+$functionProjectRoot = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
+Write-Host "Publishing function code from '$functionProjectRoot' to '$resolvedFunctionAppName'..."
+Push-Location $functionProjectRoot
+try {
+    & func azure functionapp publish $resolvedFunctionAppName --python
+    if ($LASTEXITCODE -ne 0) {
+        Stop-WithError "Function code deployment failed. See output above for details."
+    }
+}
+finally {
+    Pop-Location
 }
 
 Start-Stage -Name "Completed"

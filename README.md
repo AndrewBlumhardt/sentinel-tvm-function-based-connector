@@ -42,8 +42,8 @@ Running both lets you compare coverage and keep what works best for your environ
 Use this exact order.
 
 1. Clone the repo locally and open PowerShell in the repo folder.
-2. Sign in and verify cloud/subscription.
-3. Run `scripts/deploy.ps1`.
+2. Install prerequisites (Azure CLI + Azure Functions Core Tools), sign in, verify cloud/subscription.
+3. Run `scripts/deploy.ps1` — deploys infrastructure and publishes function code.
 4. Run `scripts/set-managed-identity-defender-permissions.ps1`.
 5. Run post-deployment validation.
 
@@ -56,13 +56,15 @@ Set-Location .\sentinel-tvm-function-based-connector
 
 ### 2) Sign in and verify context
 
+> **Prerequisites:** [Azure CLI](https://learn.microsoft.com/cli/azure/install-azure-cli) and [Azure Functions Core Tools](https://learn.microsoft.com/azure/azure-functions/functions-run-local) (`func`) must both be installed and on your PATH. `deploy.ps1` checks for both at startup.
+
 ```powershell
 az login
 az cloud show --query name -o tsv
 az account show --query "{subscription:id, tenant:tenantId, user:user.name}" -o table
 ```
 
-### 3) Deploy infrastructure and function app
+### 3) Deploy infrastructure and publish function code
 
 Required access for this step: `Contributor` on the deployment resource group.
 
