@@ -503,9 +503,8 @@ $packagePath = Join-Path ([System.IO.Path]::GetTempPath()) ("{0}-{1}.zip" -f $re
 $originalFunctionsWorkerRuntime = $env:FUNCTIONS_WORKER_RUNTIME
 Push-Location $functionProjectRoot
 try {
-    if ([string]::IsNullOrWhiteSpace($env:FUNCTIONS_WORKER_RUNTIME)) {
-        $env:FUNCTIONS_WORKER_RUNTIME = "python"
-    }
+    # Force runtime for pack to prevent inheriting invalid values like "None" from the shell.
+    $env:FUNCTIONS_WORKER_RUNTIME = "python"
 
     & $script:FuncCommand pack . --output $packagePath
     if ($LASTEXITCODE -ne 0) {
