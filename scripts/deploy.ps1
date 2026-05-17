@@ -650,6 +650,18 @@ try {
         }
 
         $storageAccountName = ($storageAccountId -split "/")[-1]
+        $storageResourceGroupName = ""
+        $storageIdSegments = $storageAccountId -split "/"
+        for ($segmentIndex = 0; $segmentIndex -lt $storageIdSegments.Length - 1; $segmentIndex++) {
+            if ($storageIdSegments[$segmentIndex] -ieq "resourceGroups") {
+                $storageResourceGroupName = $storageIdSegments[$segmentIndex + 1]
+                break
+            }
+        }
+        if ([string]::IsNullOrWhiteSpace($storageResourceGroupName)) {
+            $storageResourceGroupName = $ResourceGroupName
+        }
+
         $blobBaseUrl = (Invoke-AzCli -Args @(
             "storage", "account", "show",
             "--ids", $storageAccountId,
@@ -664,30 +676,79 @@ try {
         $blobName = "packages/{0}-{1}.zip" -f (Get-Date -Format "yyyyMMddHHmmss"), [guid]::NewGuid().ToString("N")
 
         Write-Host "Kudu mount is unavailable. Uploading package to blob storage for run-from-package URL deployment..."
-        Invoke-AzCli -Args @(
-            "storage", "container", "create",
-            "--account-name", $storageAccountName,
-            "--name", $containerName,
-            "--auth-mode", "login",
-            "--public-access", "off",
-            "--only-show-errors",
-            "-o", "none"
-        ) | Out-Null
+        $useAccountKeyAuth = $false
+        $accountKey = ""
 
-        Invoke-AzCli -Args @(
-            "storage", "blob", "upload",
-            "--account-name", $storageAccountName,
-            "--container-name", $containerName,
-            "--name", $blobName,
-            "--file", $packagePath,
-            "--overwrite", "true",
-            "--auth-mode", "login",
-            "--only-show-errors",
-            "-o", "none"
-        ) | Out-Null
+        $doBlobOperations = {
+            param(
+                [bool]$UseKeyAuth,
+                [string]$StorageAccountKey
+            )
+
+            $containerArgs = @(
+                "storage", "container", "create",
+                "--account-name", $storageAccountName,
+                "--name", $containerName,
+                "--public-access", "off",
+                "--only-show-errors",
+                "-o", "none"
+            )
+            $uploadArgs = @(
+                "storage", "blob", "upload",
+                "--account-name", $storageAccountName,
+                "--container-name", $containerName,
+                "--name", $blobName,
+                "--file", $packagePath,
+                "--overwrite", "true",
+                "--only-show-errors",
+                "-o", "none"
+            )
+
+            if ($UseKeyAuth) {
+                $containerArgs += @("--account-key", $StorageAccountKey)
+                $uploadArgs += @("--account-key", $StorageAccountKey)
+            }
+            else {
+                $containerArgs += @("--auth-mode", "login")
+                $uploadArgs += @("--auth-mode", "login")
+            }
+
+            Invoke-AzCli -Args $containerArgs | Out-Null
+            Invoke-AzCli -Args $uploadArgs | Out-Null
+        }
+
+        try {
+            & $doBlobOperations $false ""
+        }
+        catch {
+            $fallbackError = $_.Exception.Message
+            if ($fallbackError -match "required permissions needed to perform this operation" -or
+                $fallbackError -match "Storage Blob Data (Owner|Contributor|Reader)" -or
+                $fallbackError -match "--auth-mode.*key") {
+                Write-Host "Storage data-plane RBAC is unavailable for deployment identity. Retrying fallback with storage account key auth..."
+                $accountKey = (Invoke-AzCli -Args @(
+                    "storage", "account", "keys", "list",
+                    "--account-name", $storageAccountName,
+                    "--resource-group", $storageResourceGroupName,
+                    "--query", "[0].value",
+                    "-o", "tsv",
+                    "--only-show-errors"
+                )).Trim()
+
+                if ([string]::IsNullOrWhiteSpace($accountKey)) {
+                    Stop-WithError "Unable to retrieve storage account key for fallback deployment. Ensure deploy identity can list storage account keys."
+                }
+
+                $useAccountKeyAuth = $true
+                & $doBlobOperations $true $accountKey
+            }
+            else {
+                throw
+            }
+        }
 
         $sasExpiry = (Get-Date).ToUniversalTime().AddHours(12).ToString("yyyy-MM-ddTHH:mmZ")
-        $sasToken = (Invoke-AzCli -Args @(
+        $sasArgs = @(
             "storage", "blob", "generate-sas",
             "--account-name", $storageAccountName,
             "--container-name", $containerName,
@@ -695,11 +756,17 @@ try {
             "--permissions", "r",
             "--expiry", $sasExpiry,
             "--https-only",
-            "--as-user",
-            "--auth-mode", "login",
             "--only-show-errors",
             "-o", "tsv"
-        )).Trim()
+        )
+        if ($useAccountKeyAuth) {
+            $sasArgs += @("--account-key", $accountKey)
+        }
+        else {
+            $sasArgs += @("--as-user", "--auth-mode", "login")
+        }
+
+        $sasToken = (Invoke-AzCli -Args $sasArgs).Trim()
         if ([string]::IsNullOrWhiteSpace($sasToken)) {
             Stop-WithError "Failed to generate SAS token for fallback package URL deployment."
         }
