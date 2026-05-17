@@ -386,6 +386,12 @@ else {
     Write-Host "Using current Azure cloud context '$effectiveCloud'."
 }
 
+$resourceManagerEndpoint = (Invoke-AzCli -Args @("cloud", "show", "--query", "endpoints.resourceManager", "-o", "tsv")).Trim()
+if ([string]::IsNullOrWhiteSpace($resourceManagerEndpoint)) {
+    Stop-WithError "Unable to resolve ARM endpoint for cloud '$effectiveCloud'."
+}
+$resourceManagerEndpoint = $resourceManagerEndpoint.TrimEnd('/')
+
 if (-not $SkipLogin) {
     Ensure-AzLogin -EffectiveCloud $effectiveCloud -TenantId $TenantId
 }
@@ -820,7 +826,7 @@ try {
         Invoke-AzCli -Args @(
             "rest",
             "--method", "PATCH",
-            "--url", "https://management.azure.com$functionAppId/config/appsettings?api-version=2023-12-01",
+            "--url", "$resourceManagerEndpoint$functionAppId/config/appsettings?api-version=2023-12-01",
             "--body", $appSettingsBody,
             "--only-show-errors",
             "-o", "none"
