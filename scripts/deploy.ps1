@@ -805,33 +805,10 @@ try {
             $usedFallback = $true
         }
         elseif ($kuduResult.Log -match "Malformed SCM_RUN_FROM_PACKAGE") {
-            Write-Host "Detected malformed SCM_RUN_FROM_PACKAGE during Kudu deployment. Retrying Kudu after explicitly setting package flags..."
-            Invoke-AzCli -Args @(
-                "functionapp", "config", "appsettings", "set",
-                "--name", $resolvedFunctionAppName,
-                "--resource-group", $ResourceGroupName,
-                "--only-show-errors",
-                "-o", "none",
-                "--settings", "SCM_RUN_FROM_PACKAGE=0", "WEBSITE_RUN_FROM_PACKAGE=0", "SCM_DO_BUILD_DURING_DEPLOYMENT=false"
-            ) | Out-Null
-
-            $kuduResult = Invoke-KuduZipDeploy -Headers $headers -KuduBase $kuduBase -PackagePath $packagePath
-
-            if (-not $kuduResult.Success) {
-                if ($kuduResult.IsFileShareError) {
-                    Write-Host "Kudu file share is unavailable after retry. Switching to run-from-package URL fallback..."
-                    Invoke-RunFromPackageUrlDeployment
-                    $usedFallback = $true
-                }
-                elseif ($kuduResult.Log -match "Malformed SCM_RUN_FROM_PACKAGE") {
-                    Write-Host "Kudu still reports malformed SCM_RUN_FROM_PACKAGE after retry. Switching to run-from-package URL fallback..."
-                    Invoke-RunFromPackageUrlDeployment
-                    $usedFallback = $true
-                }
-                else {
-                    Stop-WithError "Kudu deployment failed. Details: $($kuduResult.Details) Log: $($kuduResult.Log)"
-                }
-            }
+            Write-Host "Detected malformed SCM_RUN_FROM_PACKAGE during Kudu deployment. Switching to run-from-package URL fallback..."
+            Write-Host "(Note: SCM_RUN_FROM_PACKAGE is a platform-managed setting and cannot be modified. Using blob-based deployment instead.)"
+            Invoke-RunFromPackageUrlDeployment
+            $usedFallback = $true
         }
         else {
             Stop-WithError "Kudu deployment failed. Details: $($kuduResult.Details) Log: $($kuduResult.Log)"
