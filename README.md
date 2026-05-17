@@ -42,7 +42,7 @@ Running both lets you compare coverage and keep what works best for your environ
 Use this exact order.
 
 1. Clone the repo locally and open PowerShell in the repo folder.
-2. Install prerequisites (Azure CLI + Azure Functions Core Tools), sign in, verify cloud/subscription.
+2. Install prerequisites (Azure CLI + Python 3.11), sign in, verify cloud/subscription.
 3. Run `scripts/deploy.ps1` — deploys infrastructure and publishes function code.
 4. Run `scripts/set-managed-identity-defender-permissions.ps1`.
 5. Run post-deployment validation.
@@ -78,19 +78,21 @@ Required access for this step: `Contributor` on the deployment resource group.
   -SubscriptionId <subscription-id>
 ```
 
-By default, `deploy.ps1` leaves the Function App in a stopped state so you can finish credentials/permissions before any timer triggers run.
+By default, `deploy.ps1` leaves the Function App running after deployment.
 
 `deploy.ps1` prints the resolved Function App name during preflight. Use that exact value in follow-on commands.
 
 When ready to test:
 
 ```powershell
-az functionapp start --name <function-app-name> --resource-group <deployment-resource-group>
-# or
 az functionapp restart --name <function-app-name> --resource-group <deployment-resource-group>
 ```
 
-If you want it left running immediately after deploy, add `-KeepFunctionRunning` to `deploy.ps1`.
+If you need to prevent triggers from running immediately after deployment, stop the app manually:
+
+```powershell
+az functionapp stop --name <function-app-name> --resource-group <deployment-resource-group>
+```
 
 > **Azure Government (GCC High):** Add `-CloudName AzureUSGovernment` to the command above.
 
@@ -229,7 +231,6 @@ Key app settings:
 
 - `DatasetConfigPath`
 - `LogsIngestion__Endpoint`
-- `LogsIngestion__RuleId`
 - `DcrRuleId_<DatasetName>`
 - `Enabled_<DatasetName>`
 - `Schedule_<DatasetName>`
