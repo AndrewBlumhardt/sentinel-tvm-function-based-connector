@@ -596,9 +596,23 @@ try {
     New-Item -Path $pythonPackagesTarget -ItemType Directory -Force | Out-Null
 
     Write-Host "Vendoring Python dependencies into package..."
+    $venvPath = Join-Path $tmpRoot "packaging-venv"
+    $venvPython = Join-Path $venvPath "Scripts\python.exe"
+
     Push-Location $functionProjectRoot
     try {
-        & python -m pip install -r requirements.txt --target $pythonPackagesTarget --quiet
+        & python -m venv $venvPath
+        if ($LASTEXITCODE -ne 0 -or -not (Test-Path $venvPython)) {
+            Stop-WithError "Failed to create temporary Python virtual environment for packaging at '$venvPath'."
+        }
+
+        # Use an isolated venv pip to avoid dependency conflict warnings from globally installed packages.
+        & $venvPython -m pip install --upgrade pip --disable-pip-version-check --quiet
+        if ($LASTEXITCODE -ne 0) {
+            Stop-WithError "Failed to initialize pip inside temporary packaging environment."
+        }
+
+        & $venvPython -m pip install -r requirements.txt --target $pythonPackagesTarget --disable-pip-version-check --quiet
         if ($LASTEXITCODE -ne 0) {
             Stop-WithError "Python dependency packaging failed. Ensure python and pip are available and compatible with runtime 3.11."
         }
