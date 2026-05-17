@@ -92,6 +92,25 @@ function Stop-WithError {
     throw "[$($script:CurrentStage)] $Message"
 }
 
+function Get-ResourceIdSegment {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$ResourceId,
+
+        [Parameter(Mandatory = $true)]
+        [string]$SegmentName
+    )
+
+    $segments = $ResourceId -split "/"
+    for ($index = 0; $index -lt $segments.Length - 1; $index++) {
+        if ($segments[$index] -ieq $SegmentName) {
+            return $segments[$index + 1]
+        }
+    }
+
+    return ""
+}
+
 function Invoke-AzCli {
     param(
         [Parameter(Mandatory = $true)]
@@ -565,6 +584,56 @@ else {
 
 Start-Stage -Name "Function code deployment"
 
+$script:StorageFallbackAuthMode = "login"
+$script:StorageFallbackAccountKey = ""
+
+if (-not [string]::IsNullOrWhiteSpace($storageAccountId)) {
+    $preflightStorageAccountName = ($storageAccountId -split "/")[-1]
+    $preflightStorageResourceGroup = Get-ResourceIdSegment -ResourceId $storageAccountId -SegmentName "resourceGroups"
+    if ([string]::IsNullOrWhiteSpace($preflightStorageResourceGroup)) {
+        $preflightStorageResourceGroup = $ResourceGroupName
+    }
+
+    try {
+        Invoke-AzCli -Args @(
+            "storage", "container", "exists",
+            "--account-name", $preflightStorageAccountName,
+            "--name", "function-releases",
+            "--auth-mode", "login",
+            "--only-show-errors",
+            "-o", "none"
+        ) | Out-Null
+        Write-Host "Preflight: storage fallback can use AAD data-plane auth."
+    }
+    catch {
+        $preflightError = $_.Exception.Message
+        if ($preflightError -match "required permissions needed to perform this operation" -or
+            $preflightError -match "Storage Blob Data (Owner|Contributor|Reader)" -or
+            $preflightError -match "--auth-mode.*key") {
+            Write-Host "Preflight: storage data-plane RBAC is unavailable. Testing storage account key fallback..."
+            $resolvedAccountKey = (Invoke-AzCli -Args @(
+                "storage", "account", "keys", "list",
+                "--account-name", $preflightStorageAccountName,
+                "--resource-group", $preflightStorageResourceGroup,
+                "--query", "[0].value",
+                "-o", "tsv",
+                "--only-show-errors"
+            )).Trim()
+
+            if ([string]::IsNullOrWhiteSpace($resolvedAccountKey)) {
+                Stop-WithError "Fallback preflight failed: no storage data-plane RBAC and unable to retrieve storage account key. Grant either Storage Blob Data Contributor on '$preflightStorageAccountName' or permission to list storage account keys."
+            }
+
+            $script:StorageFallbackAuthMode = "key"
+            $script:StorageFallbackAccountKey = $resolvedAccountKey
+            Write-Host "Preflight: storage fallback will use storage account key auth."
+        }
+        else {
+            throw
+        }
+    }
+}
+
 $functionProjectRoot = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
 $tmpRoot = Join-Path ([System.IO.Path]::GetTempPath()) ("stvmt-deploy-{0}" -f [guid]::NewGuid().ToString("N"))
 $buildRoot = Join-Path $tmpRoot "build"
@@ -650,14 +719,7 @@ try {
         }
 
         $storageAccountName = ($storageAccountId -split "/")[-1]
-        $storageResourceGroupName = ""
-        $storageIdSegments = $storageAccountId -split "/"
-        for ($segmentIndex = 0; $segmentIndex -lt $storageIdSegments.Length - 1; $segmentIndex++) {
-            if ($storageIdSegments[$segmentIndex] -ieq "resourceGroups") {
-                $storageResourceGroupName = $storageIdSegments[$segmentIndex + 1]
-                break
-            }
-        }
+        $storageResourceGroupName = Get-ResourceIdSegment -ResourceId $storageAccountId -SegmentName "resourceGroups"
         if ([string]::IsNullOrWhiteSpace($storageResourceGroupName)) {
             $storageResourceGroupName = $ResourceGroupName
         }
@@ -676,8 +738,8 @@ try {
         $blobName = "packages/{0}-{1}.zip" -f (Get-Date -Format "yyyyMMddHHmmss"), [guid]::NewGuid().ToString("N")
 
         Write-Host "Kudu mount is unavailable. Uploading package to blob storage for run-from-package URL deployment..."
-        $useAccountKeyAuth = $false
-        $accountKey = ""
+        $useAccountKeyAuth = ($script:StorageFallbackAuthMode -eq "key")
+        $accountKey = $script:StorageFallbackAccountKey
 
         $doBlobOperations = {
             param(
@@ -717,33 +779,38 @@ try {
             Invoke-AzCli -Args $uploadArgs | Out-Null
         }
 
-        try {
-            & $doBlobOperations $false ""
+        if ($useAccountKeyAuth) {
+            & $doBlobOperations $true $accountKey
         }
-        catch {
-            $fallbackError = $_.Exception.Message
-            if ($fallbackError -match "required permissions needed to perform this operation" -or
-                $fallbackError -match "Storage Blob Data (Owner|Contributor|Reader)" -or
-                $fallbackError -match "--auth-mode.*key") {
-                Write-Host "Storage data-plane RBAC is unavailable for deployment identity. Retrying fallback with storage account key auth..."
-                $accountKey = (Invoke-AzCli -Args @(
-                    "storage", "account", "keys", "list",
-                    "--account-name", $storageAccountName,
-                    "--resource-group", $storageResourceGroupName,
-                    "--query", "[0].value",
-                    "-o", "tsv",
-                    "--only-show-errors"
-                )).Trim()
-
-                if ([string]::IsNullOrWhiteSpace($accountKey)) {
-                    Stop-WithError "Unable to retrieve storage account key for fallback deployment. Ensure deploy identity can list storage account keys."
-                }
-
-                $useAccountKeyAuth = $true
-                & $doBlobOperations $true $accountKey
+        else {
+            try {
+                & $doBlobOperations $false ""
             }
-            else {
-                throw
+            catch {
+                $fallbackError = $_.Exception.Message
+                if ($fallbackError -match "required permissions needed to perform this operation" -or
+                    $fallbackError -match "Storage Blob Data (Owner|Contributor|Reader)" -or
+                    $fallbackError -match "--auth-mode.*key") {
+                    Write-Host "Storage data-plane RBAC is unavailable for deployment identity. Retrying fallback with storage account key auth..."
+                    $accountKey = (Invoke-AzCli -Args @(
+                        "storage", "account", "keys", "list",
+                        "--account-name", $storageAccountName,
+                        "--resource-group", $storageResourceGroupName,
+                        "--query", "[0].value",
+                        "-o", "tsv",
+                        "--only-show-errors"
+                    )).Trim()
+
+                    if ([string]::IsNullOrWhiteSpace($accountKey)) {
+                        Stop-WithError "Unable to retrieve storage account key for fallback deployment. Ensure deploy identity can list storage account keys."
+                    }
+
+                    $useAccountKeyAuth = $true
+                    & $doBlobOperations $true $accountKey
+                }
+                else {
+                    throw
+                }
             }
         }
 
