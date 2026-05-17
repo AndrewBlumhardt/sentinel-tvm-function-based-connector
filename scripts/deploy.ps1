@@ -130,32 +130,8 @@ function Invoke-AzCli {
     return $output
 }
 
-function Resolve-FuncCommand {
-    $funcCommand = Get-Command func -ErrorAction SilentlyContinue
-    if ($funcCommand) {
-        return $funcCommand.Source
-    }
 
-    $fallbackPaths = @(
-        "C:\Program Files\Microsoft\Azure Functions Core Tools\func.exe",
-        (Join-Path $env:ProgramFiles "Microsoft\Azure Functions Core Tools\func.exe")
-    ) | Select-Object -Unique
-
-    foreach ($path in $fallbackPaths) {
-        if (-not [string]::IsNullOrWhiteSpace($path) -and (Test-Path $path)) {
-            $funcDir = Split-Path -Path $path -Parent
-            if (-not (($env:Path -split ';') -contains $funcDir)) {
-                $env:Path = "$funcDir;$env:Path"
-            }
-
-            return $path
-        }
-    }
-
-    return $null
-}
-
-function Test-FunctionAppNameConflict {
+if (-not (Get-Command az -ErrorAction SilentlyContinue)) {
     param(
         [Parameter(Mandatory = $true)]
         [string]$Message,
@@ -314,11 +290,6 @@ function Ensure-RoleAssignment {
 
 if (-not (Get-Command az -ErrorAction SilentlyContinue)) {
     Stop-WithError "Azure CLI (az) is required but was not found in PATH."
-}
-
-$script:FuncCommand = Resolve-FuncCommand
-if (-not $script:FuncCommand) {
-    Stop-WithError "Azure Functions Core Tools (func) is required but was not found in PATH or the standard install location. Install from: https://learn.microsoft.com/azure/azure-functions/functions-run-local"
 }
 
 Start-Stage -Name "Input and file validation"
