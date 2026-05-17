@@ -79,10 +79,6 @@ var commonAppSettings = [
     value: dataCollectionEndpoint.properties.logsIngestion.endpoint
   }
   {
-    name: 'LogsIngestion__RuleId'
-    value: length(datasets) > 0 ? dataCollectionRules[0].properties.immutableId : ''
-  }
-  {
     name: 'ManagedIdentity__ClientId'
     value: ''
   }
@@ -95,6 +91,8 @@ var datasetToggleSettings = [for dataset in datasets: {
   name: 'Enabled_${dataset.name}'
   value: string(bool(dataset.enabled))
 }]
+
+
 var mergedAppSettings = concat(commonAppSettings, datasetToggleSettings, scheduleAppSettings)
 
 @description('Prefix used for generated resource names.')
@@ -260,6 +258,37 @@ resource functionApp 'Microsoft.Web/sites@2023-12-01' = {
     }
   }
 }
+resource functionAppDatasetSettings 'Microsoft.Web/sites/config@2023-12-01' = {
+  parent: functionApp
+  name: 'appsettings'
+  properties: {
+    DcrRuleId_DeviceTvmSoftwareInventory: dataCollectionRules[0].properties.immutableId
+    DcrRuleId_DeviceTvmSoftwareVulnerabilities: dataCollectionRules[0].properties.immutableId
+    DcrRuleId_DeviceTvmSoftwareVulnerabilitiesKB: dataCollectionRules[0].properties.immutableId
+    DcrRuleId_DeviceTvmSecureConfigurationAssessment: dataCollectionRules[0].properties.immutableId
+    DcrRuleId_DeviceTvmSecureConfigurationAssessmentKB: dataCollectionRules[0].properties.immutableId
+    DcrRuleId_DeviceTvmSoftwareEvidenceBeta: dataCollectionRules[0].properties.immutableId
+    DcrRuleId_DeviceTvmBrowserExtensions: dataCollectionRules[0].properties.immutableId
+    DcrRuleId_DeviceTvmBrowserExtensionsKB: dataCollectionRules[0].properties.immutableId
+    DcrRuleId_DeviceTvmCertificateInfo: dataCollectionRules[0].properties.immutableId
+    DcrRuleId_DeviceTvmHardwareFirmware: dataCollectionRules[0].properties.immutableId
+    DcrRuleId_DeviceTvmInfoGathering: dataCollectionRules[1].properties.immutableId
+    DcrRuleId_DeviceTvmInfoGatheringKB: dataCollectionRules[1].properties.immutableId
+    DcrRuleId_ApiSoftwareVulnerabilitiesByMachine: dataCollectionRules[1].properties.immutableId
+    DcrRuleId_ApiMachines: dataCollectionRules[1].properties.immutableId
+    DcrRuleId_ApiSoftwareInventoryByMachine: dataCollectionRules[1].properties.immutableId
+    DcrRuleId_ApiNonCpeSoftwareInventory: dataCollectionRules[1].properties.immutableId
+    DcrRuleId_ApiRecommendations: dataCollectionRules[1].properties.immutableId
+    DcrRuleId_ApiSecureConfigurationAssessmentByMachine: dataCollectionRules[1].properties.immutableId
+    DcrRuleId_ApiVulnerabilitiesCatalog: dataCollectionRules[1].properties.immutableId
+    DcrRuleId_ApiBrowserExtensionsInventory: dataCollectionRules[1].properties.immutableId
+    DcrRuleId_ApiBrowserExtensionPermissions: dataCollectionRules[2].properties.immutableId
+    DcrRuleId_ApiCertificateInventoryAssessment: dataCollectionRules[2].properties.immutableId
+    DcrRuleId_ApiHardwareFirmwareAssessment: dataCollectionRules[2].properties.immutableId
+    DcrRuleId_NistCveCatalog: dataCollectionRules[2].properties.immutableId
+    DcrRuleId_NistCpeConfigurations: dataCollectionRules[2].properties.immutableId
+  }
+}
 
 output functionAppName string = functionApp.name
 output functionPrincipalId string = functionApp.identity.principalId
@@ -271,3 +300,9 @@ output dataCollectionRuleResourceId string = length(datasets) > 0 ? dataCollecti
 output dataCollectionRuleResourceIds array = [for i in range(0, length(datasets) == 0 ? 0 : dcrChunkCount): dataCollectionRules[i].id]
 output logsIngestionEndpoint string = dataCollectionEndpoint.properties.logsIngestion.endpoint
 output workspaceId string = workspace.id
+
+
+
+
+
+
