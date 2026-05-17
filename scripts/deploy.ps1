@@ -867,11 +867,59 @@ try {
         }
         catch {
             $errorMsg = $_.Exception.Message
+            $statusCode = 0
+            $statusDescription = ""
+            $responseBody = ""
+
+            $httpResponse = $_.Exception.Response
+            if ($httpResponse) {
+                try {
+                    $statusCode = [int]$httpResponse.StatusCode
+                }
+                catch {
+                    $statusCode = 0
+                }
+
+                try {
+                    $statusDescription = [string]$httpResponse.StatusDescription
+                }
+                catch {
+                    $statusDescription = ""
+                }
+
+                try {
+                    $responseStream = $httpResponse.GetResponseStream()
+                    if ($responseStream) {
+                        $streamReader = New-Object System.IO.StreamReader($responseStream)
+                        $responseBody = $streamReader.ReadToEnd()
+                        $streamReader.Close()
+                    }
+                }
+                catch {
+                    $responseBody = ""
+                }
+            }
+
+            $errorCombined = "$errorMsg`n$responseBody"
+            $isFileShareError = ($errorCombined -match "file share|not mounted|WEBSITE_CONTENTAZUREFILECONNECTIONSTRING")
+            $isMalformedRunFromPackage = ($errorCombined -match "Malformed SCM_RUN_FROM_PACKAGE|SCM_RUN_FROM_PACKAGE")
+            $isUploadBadRequest = ($statusCode -eq 400)
+            $shouldFallbackToBlob = ($isFileShareError -or $isMalformedRunFromPackage -or $isUploadBadRequest)
+
+            $detailSuffix = if ($statusCode -gt 0) {
+                "HTTP $statusCode $statusDescription"
+            }
+            else {
+                "No HTTP status captured"
+            }
+
             return [PSCustomObject]@{
                 Success = $false
-                Details = "Failed to upload zip to Kudu: $errorMsg"
-                Log = $errorMsg
-                IsFileShareError = ($errorMsg -match "file share|not mounted|WEBSITE_CONTENTAZUREFILECONNECTIONSTRING")
+                Details = "Failed to upload zip to Kudu: $detailSuffix. $errorMsg"
+                Log = $errorCombined
+                IsFileShareError = $isFileShareError
+                IsFallbackRecommended = $shouldFallbackToBlob
+                IsMalformedRunFromPackage = $isMalformedRunFromPackage
             }
         }
 
@@ -897,6 +945,8 @@ try {
                     Details = ($kuduStatus | ConvertTo-Json -Depth 8)
                     Log = ""
                     IsFileShareError = $false
+                    IsFallbackRecommended = $false
+                    IsMalformedRunFromPackage = $false
                 }
             }
 
@@ -913,6 +963,8 @@ try {
                     Details = ($kuduStatus | ConvertTo-Json -Depth 8)
                     Log = $logDetails
                     IsFileShareError = $false
+                    IsFallbackRecommended = ($logDetails -match "Malformed SCM_RUN_FROM_PACKAGE")
+                    IsMalformedRunFromPackage = ($logDetails -match "Malformed SCM_RUN_FROM_PACKAGE")
                 }
             }
         }
@@ -922,6 +974,8 @@ try {
             Details = "Timed out waiting for Kudu deployment completion."
             Log = ""
             IsFileShareError = $false
+            IsFallbackRecommended = $false
+            IsMalformedRunFromPackage = $false
         }
     }
 
@@ -938,9 +992,14 @@ try {
             Invoke-RunFromPackageUrlDeployment
             $usedFallback = $true
         }
-        elseif ($kuduResult.Log -match "Malformed SCM_RUN_FROM_PACKAGE") {
+        elseif ($kuduResult.IsMalformedRunFromPackage) {
             Write-Host "Detected malformed SCM_RUN_FROM_PACKAGE during Kudu deployment. Switching to run-from-package URL fallback..."
             Write-Host "(Note: SCM_RUN_FROM_PACKAGE is a platform-managed setting and cannot be modified. Using blob-based deployment instead.)"
+            Invoke-RunFromPackageUrlDeployment
+            $usedFallback = $true
+        }
+        elseif ($kuduResult.IsFallbackRecommended) {
+            Write-Host "Kudu upload returned a fallback-eligible error. Switching to run-from-package URL fallback..."
             Invoke-RunFromPackageUrlDeployment
             $usedFallback = $true
         }
