@@ -9,23 +9,60 @@
       "destinationTable": "DeviceTvmSoftwareInventory_CL",
       "dcrStreamName": "Custom-DeviceTvmSoftwareInventory",
       "scheduleSetting": "Schedule_DeviceTvmSoftwareInventory",
+      "ruleShardIndex": 0,
       "batchSize": 500,
       "pageSize": 10000,
       "collectionMode": "FullSnapshot",
       "pageOrderBy": "Timestamp asc",
       "columns": [
-        {"name": "TimeGenerated", "type": "datetime"},
-        {"name": "DeviceId", "type": "string"},
-        {"name": "DeviceName", "type": "string"},
-        {"name": "OSPlatform", "type": "string"},
-        {"name": "OSVersion", "type": "string"},
-        {"name": "OSArchitecture", "type": "string"},
-        {"name": "SoftwareVendor", "type": "string"},
-        {"name": "SoftwareName", "type": "string"},
-        {"name": "SoftwareVersion", "type": "string"},
-        {"name": "EndOfSupportStatus", "type": "string"},
-        {"name": "EndOfSupportDate", "type": "datetime"},
-        {"name": "ProductCodeCpe", "type": "string"}
+        {
+          "name": "TimeGenerated",
+          "type": "datetime"
+        },
+        {
+          "name": "DeviceId",
+          "type": "string"
+        },
+        {
+          "name": "DeviceName",
+          "type": "string"
+        },
+        {
+          "name": "OSPlatform",
+          "type": "string"
+        },
+        {
+          "name": "OSVersion",
+          "type": "string"
+        },
+        {
+          "name": "OSArchitecture",
+          "type": "string"
+        },
+        {
+          "name": "SoftwareVendor",
+          "type": "string"
+        },
+        {
+          "name": "SoftwareName",
+          "type": "string"
+        },
+        {
+          "name": "SoftwareVersion",
+          "type": "string"
+        },
+        {
+          "name": "EndOfSupportStatus",
+          "type": "string"
+        },
+        {
+          "name": "EndOfSupportDate",
+          "type": "datetime"
+        },
+        {
+          "name": "ProductCodeCpe",
+          "type": "string"
+        }
       ]
     },
     {
@@ -36,25 +73,68 @@
       "destinationTable": "DeviceTvmSoftwareVulnerabilities_CL",
       "dcrStreamName": "Custom-DeviceTvmSoftwareVulnerabilities",
       "scheduleSetting": "Schedule_DeviceTvmSoftwareVulnerabilities",
+      "ruleShardIndex": 0,
       "batchSize": 500,
       "pageSize": 10000,
       "collectionMode": "FullSnapshot",
       "pageOrderBy": "Timestamp asc",
       "columns": [
-        {"name": "TimeGenerated", "type": "datetime"},
-        {"name": "DeviceId", "type": "string"},
-        {"name": "DeviceName", "type": "string"},
-        {"name": "OSPlatform", "type": "string"},
-        {"name": "OSVersion", "type": "string"},
-        {"name": "OSArchitecture", "type": "string"},
-        {"name": "SoftwareVendor", "type": "string"},
-        {"name": "SoftwareName", "type": "string"},
-        {"name": "SoftwareVersion", "type": "string"},
-        {"name": "CveId", "type": "string"},
-        {"name": "VulnerabilitySeverityLevel", "type": "string"},
-        {"name": "RecommendedSecurityUpdate", "type": "string"},
-        {"name": "RecommendedSecurityUpdateId", "type": "string"},
-        {"name": "CveTags", "type": "string"}
+        {
+          "name": "TimeGenerated",
+          "type": "datetime"
+        },
+        {
+          "name": "DeviceId",
+          "type": "string"
+        },
+        {
+          "name": "DeviceName",
+          "type": "string"
+        },
+        {
+          "name": "OSPlatform",
+          "type": "string"
+        },
+        {
+          "name": "OSVersion",
+          "type": "string"
+        },
+        {
+          "name": "OSArchitecture",
+          "type": "string"
+        },
+        {
+          "name": "SoftwareVendor",
+          "type": "string"
+        },
+        {
+          "name": "SoftwareName",
+          "type": "string"
+        },
+        {
+          "name": "SoftwareVersion",
+          "type": "string"
+        },
+        {
+          "name": "CveId",
+          "type": "string"
+        },
+        {
+          "name": "VulnerabilitySeverityLevel",
+          "type": "string"
+        },
+        {
+          "name": "RecommendedSecurityUpdate",
+          "type": "string"
+        },
+        {
+          "name": "RecommendedSecurityUpdateId",
+          "type": "string"
+        },
+        {
+          "name": "CveTags",
+          "type": "string"
+        }
       ]
     },
     {
@@ -65,20 +145,48 @@
       "destinationTable": "DeviceTvmSoftwareVulnerabilitiesKB_CL",
       "dcrStreamName": "Custom-DeviceTvmSoftwareVulnerabilitiesKB",
       "scheduleSetting": "Schedule_DeviceTvmSoftwareVulnerabilitiesKB",
+      "ruleShardIndex": 0,
       "batchSize": 500,
       "pageSize": 10000,
       "collectionMode": "FullSnapshot",
       "pageOrderBy": "Timestamp asc",
       "columns": [
-        {"name": "TimeGenerated", "type": "datetime"},
-        {"name": "CveId", "type": "string"},
-        {"name": "CvssScore", "type": "string"},
-        {"name": "IsExploitAvailable", "type": "boolean"},
-        {"name": "VulnerabilitySeverityLevel", "type": "string"},
-        {"name": "LastModifiedTime", "type": "datetime"},
-        {"name": "PublishedDate", "type": "datetime"},
-        {"name": "VulnerabilityDescription", "type": "string"},
-        {"name": "AffectedSoftware", "type": "string"}
+        {
+          "name": "TimeGenerated",
+          "type": "datetime"
+        },
+        {
+          "name": "CveId",
+          "type": "string"
+        },
+        {
+          "name": "CvssScore",
+          "type": "string"
+        },
+        {
+          "name": "IsExploitAvailable",
+          "type": "boolean"
+        },
+        {
+          "name": "VulnerabilitySeverityLevel",
+          "type": "string"
+        },
+        {
+          "name": "LastModifiedTime",
+          "type": "datetime"
+        },
+        {
+          "name": "PublishedDate",
+          "type": "datetime"
+        },
+        {
+          "name": "VulnerabilityDescription",
+          "type": "string"
+        },
+        {
+          "name": "AffectedSoftware",
+          "type": "string"
+        }
       ]
     },
     {
@@ -89,24 +197,64 @@
       "destinationTable": "DeviceTvmSecureConfigurationAssessment_CL",
       "dcrStreamName": "Custom-DeviceTvmSecureConfigurationAssessment",
       "scheduleSetting": "Schedule_DeviceTvmSecureConfigurationAssessment",
+      "ruleShardIndex": 0,
       "batchSize": 500,
       "pageSize": 10000,
       "collectionMode": "FullSnapshot",
       "pageOrderBy": "Timestamp asc",
       "columns": [
-        {"name": "TimeGenerated", "type": "datetime"},
-        {"name": "DeviceId", "type": "string"},
-        {"name": "DeviceName", "type": "string"},
-        {"name": "OSPlatform", "type": "string"},
-        {"name": "Timestamp", "type": "datetime"},
-        {"name": "ConfigurationId", "type": "string"},
-        {"name": "ConfigurationCategory", "type": "string"},
-        {"name": "ConfigurationSubcategory", "type": "string"},
-        {"name": "ConfigurationImpact", "type": "real"},
-        {"name": "IsCompliant", "type": "boolean"},
-        {"name": "IsApplicable", "type": "boolean"},
-        {"name": "Context", "type": "string"},
-        {"name": "IsExpectedUserImpact", "type": "boolean"}
+        {
+          "name": "TimeGenerated",
+          "type": "datetime"
+        },
+        {
+          "name": "DeviceId",
+          "type": "string"
+        },
+        {
+          "name": "DeviceName",
+          "type": "string"
+        },
+        {
+          "name": "OSPlatform",
+          "type": "string"
+        },
+        {
+          "name": "Timestamp",
+          "type": "datetime"
+        },
+        {
+          "name": "ConfigurationId",
+          "type": "string"
+        },
+        {
+          "name": "ConfigurationCategory",
+          "type": "string"
+        },
+        {
+          "name": "ConfigurationSubcategory",
+          "type": "string"
+        },
+        {
+          "name": "ConfigurationImpact",
+          "type": "real"
+        },
+        {
+          "name": "IsCompliant",
+          "type": "boolean"
+        },
+        {
+          "name": "IsApplicable",
+          "type": "boolean"
+        },
+        {
+          "name": "Context",
+          "type": "string"
+        },
+        {
+          "name": "IsExpectedUserImpact",
+          "type": "boolean"
+        }
       ]
     },
     {
@@ -117,22 +265,56 @@
       "destinationTable": "DeviceTvmSecureConfigurationAssessmentKB_CL",
       "dcrStreamName": "Custom-DeviceTvmSecureConfigurationAssessmentKB",
       "scheduleSetting": "Schedule_DeviceTvmSecureConfigurationAssessmentKB",
+      "ruleShardIndex": 0,
       "batchSize": 500,
       "pageSize": 10000,
       "collectionMode": "FullSnapshot",
       "pageOrderBy": "Timestamp asc",
       "columns": [
-        {"name": "TimeGenerated", "type": "datetime"},
-        {"name": "ConfigurationId", "type": "string"},
-        {"name": "ConfigurationImpact", "type": "real"},
-        {"name": "ConfigurationName", "type": "string"},
-        {"name": "ConfigurationDescription", "type": "string"},
-        {"name": "RiskDescription", "type": "string"},
-        {"name": "ConfigurationCategory", "type": "string"},
-        {"name": "ConfigurationSubcategory", "type": "string"},
-        {"name": "ConfigurationBenchmarks", "type": "string"},
-        {"name": "Tags", "type": "string"},
-        {"name": "RemediationOptions", "type": "string"}
+        {
+          "name": "TimeGenerated",
+          "type": "datetime"
+        },
+        {
+          "name": "ConfigurationId",
+          "type": "string"
+        },
+        {
+          "name": "ConfigurationImpact",
+          "type": "real"
+        },
+        {
+          "name": "ConfigurationName",
+          "type": "string"
+        },
+        {
+          "name": "ConfigurationDescription",
+          "type": "string"
+        },
+        {
+          "name": "RiskDescription",
+          "type": "string"
+        },
+        {
+          "name": "ConfigurationCategory",
+          "type": "string"
+        },
+        {
+          "name": "ConfigurationSubcategory",
+          "type": "string"
+        },
+        {
+          "name": "ConfigurationBenchmarks",
+          "type": "string"
+        },
+        {
+          "name": "Tags",
+          "type": "string"
+        },
+        {
+          "name": "RemediationOptions",
+          "type": "string"
+        }
       ]
     },
     {
@@ -143,19 +325,44 @@
       "destinationTable": "DeviceTvmSoftwareEvidenceBeta_CL",
       "dcrStreamName": "Custom-DeviceTvmSoftwareEvidenceBeta",
       "scheduleSetting": "Schedule_DeviceTvmSoftwareEvidenceBeta",
+      "ruleShardIndex": 0,
       "batchSize": 500,
       "pageSize": 10000,
       "collectionMode": "FullSnapshot",
       "pageOrderBy": "Timestamp asc",
       "columns": [
-        {"name": "TimeGenerated", "type": "datetime"},
-        {"name": "DeviceId", "type": "string"},
-        {"name": "SoftwareVendor", "type": "string"},
-        {"name": "SoftwareName", "type": "string"},
-        {"name": "SoftwareVersion", "type": "string"},
-        {"name": "RegistryPaths", "type": "string"},
-        {"name": "DiskPaths", "type": "string"},
-        {"name": "LastSeenTime", "type": "string"}
+        {
+          "name": "TimeGenerated",
+          "type": "datetime"
+        },
+        {
+          "name": "DeviceId",
+          "type": "string"
+        },
+        {
+          "name": "SoftwareVendor",
+          "type": "string"
+        },
+        {
+          "name": "SoftwareName",
+          "type": "string"
+        },
+        {
+          "name": "SoftwareVersion",
+          "type": "string"
+        },
+        {
+          "name": "RegistryPaths",
+          "type": "string"
+        },
+        {
+          "name": "DiskPaths",
+          "type": "string"
+        },
+        {
+          "name": "LastSeenTime",
+          "type": "string"
+        }
       ]
     },
     {
@@ -166,22 +373,56 @@
       "destinationTable": "DeviceTvmBrowserExtensions_CL",
       "dcrStreamName": "Custom-DeviceTvmBrowserExtensions",
       "scheduleSetting": "Schedule_DeviceTvmBrowserExtensions",
+      "ruleShardIndex": 0,
       "batchSize": 500,
       "pageSize": 10000,
       "collectionMode": "FullSnapshot",
       "pageOrderBy": "Timestamp asc",
       "columns": [
-        {"name": "TimeGenerated", "type": "datetime"},
-        {"name": "DeviceId", "type": "string"},
-        {"name": "BrowserName", "type": "string"},
-        {"name": "ExtensionId", "type": "string"},
-        {"name": "ExtensionName", "type": "string"},
-        {"name": "ExtensionDescription", "type": "string"},
-        {"name": "ExtensionVersion", "type": "string"},
-        {"name": "ExtensionRisk", "type": "string"},
-        {"name": "ExtensionVendor", "type": "string"},
-        {"name": "IsActivated", "type": "string"},
-        {"name": "InstallationTime", "type": "datetime"}
+        {
+          "name": "TimeGenerated",
+          "type": "datetime"
+        },
+        {
+          "name": "DeviceId",
+          "type": "string"
+        },
+        {
+          "name": "BrowserName",
+          "type": "string"
+        },
+        {
+          "name": "ExtensionId",
+          "type": "string"
+        },
+        {
+          "name": "ExtensionName",
+          "type": "string"
+        },
+        {
+          "name": "ExtensionDescription",
+          "type": "string"
+        },
+        {
+          "name": "ExtensionVersion",
+          "type": "string"
+        },
+        {
+          "name": "ExtensionRisk",
+          "type": "string"
+        },
+        {
+          "name": "ExtensionVendor",
+          "type": "string"
+        },
+        {
+          "name": "IsActivated",
+          "type": "string"
+        },
+        {
+          "name": "InstallationTime",
+          "type": "datetime"
+        }
       ]
     },
     {
@@ -192,23 +433,60 @@
       "destinationTable": "DeviceTvmBrowserExtensionsKB_CL",
       "dcrStreamName": "Custom-DeviceTvmBrowserExtensionsKB",
       "scheduleSetting": "Schedule_DeviceTvmBrowserExtensionsKB",
+      "ruleShardIndex": 0,
       "batchSize": 500,
       "pageSize": 10000,
       "collectionMode": "FullSnapshot",
       "pageOrderBy": "Timestamp asc",
       "columns": [
-        {"name": "TimeGenerated", "type": "datetime"},
-        {"name": "BrowserName", "type": "string"},
-        {"name": "ExtensionId", "type": "string"},
-        {"name": "ExtensionName", "type": "string"},
-        {"name": "ExtensionDescription", "type": "string"},
-        {"name": "ExtensionVersion", "type": "string"},
-        {"name": "ExtensionRisk", "type": "string"},
-        {"name": "PermissionId", "type": "string"},
-        {"name": "PermissionName", "type": "string"},
-        {"name": "PermissionDescription", "type": "string"},
-        {"name": "PermissionRisk", "type": "string"},
-        {"name": "IsPermissionRequired", "type": "string"}
+        {
+          "name": "TimeGenerated",
+          "type": "datetime"
+        },
+        {
+          "name": "BrowserName",
+          "type": "string"
+        },
+        {
+          "name": "ExtensionId",
+          "type": "string"
+        },
+        {
+          "name": "ExtensionName",
+          "type": "string"
+        },
+        {
+          "name": "ExtensionDescription",
+          "type": "string"
+        },
+        {
+          "name": "ExtensionVersion",
+          "type": "string"
+        },
+        {
+          "name": "ExtensionRisk",
+          "type": "string"
+        },
+        {
+          "name": "PermissionId",
+          "type": "string"
+        },
+        {
+          "name": "PermissionName",
+          "type": "string"
+        },
+        {
+          "name": "PermissionDescription",
+          "type": "string"
+        },
+        {
+          "name": "PermissionRisk",
+          "type": "string"
+        },
+        {
+          "name": "IsPermissionRequired",
+          "type": "string"
+        }
       ]
     },
     {
@@ -219,24 +497,64 @@
       "destinationTable": "DeviceTvmCertificateInfo_CL",
       "dcrStreamName": "Custom-DeviceTvmCertificateInfo",
       "scheduleSetting": "Schedule_DeviceTvmCertificateInfo",
+      "ruleShardIndex": 0,
       "batchSize": 500,
       "pageSize": 10000,
       "collectionMode": "FullSnapshot",
       "pageOrderBy": "Timestamp asc",
       "columns": [
-        {"name": "TimeGenerated", "type": "datetime"},
-        {"name": "DeviceId", "type": "string"},
-        {"name": "Thumbprint", "type": "string"},
-        {"name": "Path", "type": "string"},
-        {"name": "SerialNumber", "type": "string"},
-        {"name": "FriendlyName", "type": "string"},
-        {"name": "SignatureAlgorithm", "type": "string"},
-        {"name": "KeySize", "type": "string"},
-        {"name": "ExpirationDate", "type": "string"},
-        {"name": "IssueDate", "type": "string"},
-        {"name": "SubjectType", "type": "string"},
-        {"name": "KeyUsage", "type": "string"},
-        {"name": "ExtendedKeyUsage", "type": "string"}
+        {
+          "name": "TimeGenerated",
+          "type": "datetime"
+        },
+        {
+          "name": "DeviceId",
+          "type": "string"
+        },
+        {
+          "name": "Thumbprint",
+          "type": "string"
+        },
+        {
+          "name": "Path",
+          "type": "string"
+        },
+        {
+          "name": "SerialNumber",
+          "type": "string"
+        },
+        {
+          "name": "FriendlyName",
+          "type": "string"
+        },
+        {
+          "name": "SignatureAlgorithm",
+          "type": "string"
+        },
+        {
+          "name": "KeySize",
+          "type": "string"
+        },
+        {
+          "name": "ExpirationDate",
+          "type": "string"
+        },
+        {
+          "name": "IssueDate",
+          "type": "string"
+        },
+        {
+          "name": "SubjectType",
+          "type": "string"
+        },
+        {
+          "name": "KeyUsage",
+          "type": "string"
+        },
+        {
+          "name": "ExtendedKeyUsage",
+          "type": "string"
+        }
       ]
     },
     {
@@ -247,20 +565,48 @@
       "destinationTable": "DeviceTvmHardwareFirmware_CL",
       "dcrStreamName": "Custom-DeviceTvmHardwareFirmware",
       "scheduleSetting": "Schedule_DeviceTvmHardwareFirmware",
+      "ruleShardIndex": 0,
       "batchSize": 500,
       "pageSize": 10000,
       "collectionMode": "FullSnapshot",
       "pageOrderBy": "Timestamp asc",
       "columns": [
-        {"name": "TimeGenerated", "type": "datetime"},
-        {"name": "DeviceId", "type": "string"},
-        {"name": "DeviceName", "type": "string"},
-        {"name": "ComponentType", "type": "string"},
-        {"name": "Manufacturer", "type": "string"},
-        {"name": "ComponentName", "type": "string"},
-        {"name": "ComponentFamily", "type": "string"},
-        {"name": "ComponentVersion", "type": "string"},
-        {"name": "AdditionalFields", "type": "dynamic"}
+        {
+          "name": "TimeGenerated",
+          "type": "datetime"
+        },
+        {
+          "name": "DeviceId",
+          "type": "string"
+        },
+        {
+          "name": "DeviceName",
+          "type": "string"
+        },
+        {
+          "name": "ComponentType",
+          "type": "string"
+        },
+        {
+          "name": "Manufacturer",
+          "type": "string"
+        },
+        {
+          "name": "ComponentName",
+          "type": "string"
+        },
+        {
+          "name": "ComponentFamily",
+          "type": "string"
+        },
+        {
+          "name": "ComponentVersion",
+          "type": "string"
+        },
+        {
+          "name": "AdditionalFields",
+          "type": "dynamic"
+        }
       ]
     },
     {
@@ -271,18 +617,40 @@
       "destinationTable": "DeviceTvmInfoGathering_CL",
       "dcrStreamName": "Custom-DeviceTvmInfoGathering",
       "scheduleSetting": "Schedule_DeviceTvmInfoGathering",
+      "ruleShardIndex": 1,
       "batchSize": 500,
       "pageSize": 10000,
       "collectionMode": "FullSnapshot",
       "pageOrderBy": "Timestamp asc",
       "columns": [
-        {"name": "TimeGenerated", "type": "datetime"},
-        {"name": "Timestamp", "type": "datetime"},
-        {"name": "LastSeenTime", "type": "datetime"},
-        {"name": "DeviceId", "type": "string"},
-        {"name": "DeviceName", "type": "string"},
-        {"name": "OSPlatform", "type": "string"},
-        {"name": "AdditionalFields", "type": "dynamic"}
+        {
+          "name": "TimeGenerated",
+          "type": "datetime"
+        },
+        {
+          "name": "Timestamp",
+          "type": "datetime"
+        },
+        {
+          "name": "LastSeenTime",
+          "type": "datetime"
+        },
+        {
+          "name": "DeviceId",
+          "type": "string"
+        },
+        {
+          "name": "DeviceName",
+          "type": "string"
+        },
+        {
+          "name": "OSPlatform",
+          "type": "string"
+        },
+        {
+          "name": "AdditionalFields",
+          "type": "dynamic"
+        }
       ]
     },
     {
@@ -293,17 +661,36 @@
       "destinationTable": "DeviceTvmInfoGatheringKB_CL",
       "dcrStreamName": "Custom-DeviceTvmInfoGatheringKB",
       "scheduleSetting": "Schedule_DeviceTvmInfoGatheringKB",
+      "ruleShardIndex": 1,
       "batchSize": 500,
       "pageSize": 10000,
       "collectionMode": "FullSnapshot",
       "pageOrderBy": "Timestamp asc",
       "columns": [
-        {"name": "TimeGenerated", "type": "datetime"},
-        {"name": "IgId", "type": "string"},
-        {"name": "FieldName", "type": "string"},
-        {"name": "Description", "type": "string"},
-        {"name": "Categories", "type": "string"},
-        {"name": "DataStructure", "type": "string"}
+        {
+          "name": "TimeGenerated",
+          "type": "datetime"
+        },
+        {
+          "name": "IgId",
+          "type": "string"
+        },
+        {
+          "name": "FieldName",
+          "type": "string"
+        },
+        {
+          "name": "Description",
+          "type": "string"
+        },
+        {
+          "name": "Categories",
+          "type": "string"
+        },
+        {
+          "name": "DataStructure",
+          "type": "string"
+        }
       ]
     },
     {
@@ -314,34 +701,107 @@
       "destinationTable": "ApiSoftwareVulnerabilitiesByMachine_CL",
       "dcrStreamName": "Custom-ApiSoftwareVulnerabilitiesByMachine",
       "scheduleSetting": "Schedule_ApiSoftwareVulnerabilitiesByMachine",
+      "ruleShardIndex": 1,
       "batchSize": 500,
       "pageSize": 10000,
       "collectionMode": "FullSnapshot",
       "columns": [
-        {"name": "TimeGenerated", "type": "datetime"},
-        {"name": "id", "type": "string"},
-        {"name": "deviceId", "type": "string"},
-        {"name": "rbacGroupName", "type": "string"},
-        {"name": "deviceName", "type": "string"},
-        {"name": "osPlatform", "type": "string"},
-        {"name": "osVersion", "type": "string"},
-        {"name": "osArchitecture", "type": "string"},
-        {"name": "softwareVendor", "type": "string"},
-        {"name": "softwareName", "type": "string"},
-        {"name": "softwareVersion", "type": "string"},
-        {"name": "cveId", "type": "string"},
-        {"name": "vulnerabilitySeverityLevel", "type": "string"},
-        {"name": "recommendedSecurityUpdate", "type": "string"},
-        {"name": "recommendedSecurityUpdateId", "type": "string"},
-        {"name": "recommendedSecurityUpdateUrl", "type": "string"},
-        {"name": "diskPaths", "type": "string"},
-        {"name": "registryPaths", "type": "string"},
-        {"name": "lastSeenTimestamp", "type": "string"},
-        {"name": "firstSeenTimestamp", "type": "string"},
-        {"name": "exploitabilityLevel", "type": "string"},
-        {"name": "recommendationReference", "type": "string"},
-        {"name": "securityUpdateAvailable", "type": "boolean"},
-        {"name": "cvssScore", "type": "real"}
+        {
+          "name": "TimeGenerated",
+          "type": "datetime"
+        },
+        {
+          "name": "id",
+          "type": "string"
+        },
+        {
+          "name": "deviceId",
+          "type": "string"
+        },
+        {
+          "name": "rbacGroupName",
+          "type": "string"
+        },
+        {
+          "name": "deviceName",
+          "type": "string"
+        },
+        {
+          "name": "osPlatform",
+          "type": "string"
+        },
+        {
+          "name": "osVersion",
+          "type": "string"
+        },
+        {
+          "name": "osArchitecture",
+          "type": "string"
+        },
+        {
+          "name": "softwareVendor",
+          "type": "string"
+        },
+        {
+          "name": "softwareName",
+          "type": "string"
+        },
+        {
+          "name": "softwareVersion",
+          "type": "string"
+        },
+        {
+          "name": "cveId",
+          "type": "string"
+        },
+        {
+          "name": "vulnerabilitySeverityLevel",
+          "type": "string"
+        },
+        {
+          "name": "recommendedSecurityUpdate",
+          "type": "string"
+        },
+        {
+          "name": "recommendedSecurityUpdateId",
+          "type": "string"
+        },
+        {
+          "name": "recommendedSecurityUpdateUrl",
+          "type": "string"
+        },
+        {
+          "name": "diskPaths",
+          "type": "string"
+        },
+        {
+          "name": "registryPaths",
+          "type": "string"
+        },
+        {
+          "name": "lastSeenTimestamp",
+          "type": "string"
+        },
+        {
+          "name": "firstSeenTimestamp",
+          "type": "string"
+        },
+        {
+          "name": "exploitabilityLevel",
+          "type": "string"
+        },
+        {
+          "name": "recommendationReference",
+          "type": "string"
+        },
+        {
+          "name": "securityUpdateAvailable",
+          "type": "boolean"
+        },
+        {
+          "name": "cvssScore",
+          "type": "real"
+        }
       ]
     },
     {
@@ -352,29 +812,87 @@
       "destinationTable": "ApiMachines_CL",
       "dcrStreamName": "Custom-ApiMachines",
       "scheduleSetting": "Schedule_ApiMachines",
+      "ruleShardIndex": 1,
       "batchSize": 500,
       "pageSize": 10000,
       "collectionMode": "FullSnapshot",
       "columns": [
-        {"name": "TimeGenerated", "type": "datetime"},
-        {"name": "id", "type": "string"},
-        {"name": "computerDnsName", "type": "string"},
-        {"name": "firstSeen", "type": "string"},
-        {"name": "lastSeen", "type": "string"},
-        {"name": "osPlatform", "type": "string"},
-        {"name": "version", "type": "string"},
-        {"name": "osProcessor", "type": "string"},
-        {"name": "lastIpAddress", "type": "string"},
-        {"name": "lastExternalIpAddress", "type": "string"},
-        {"name": "osBuild", "type": "int"},
-        {"name": "healthStatus", "type": "string"},
-        {"name": "rbacGroupId", "type": "int"},
-        {"name": "rbacGroupName", "type": "string"},
-        {"name": "riskScore", "type": "string"},
-        {"name": "exposureLevel", "type": "string"},
-        {"name": "isAadJoined", "type": "boolean"},
-        {"name": "aadDeviceId", "type": "string"},
-        {"name": "machineTags", "type": "string"}
+        {
+          "name": "TimeGenerated",
+          "type": "datetime"
+        },
+        {
+          "name": "id",
+          "type": "string"
+        },
+        {
+          "name": "computerDnsName",
+          "type": "string"
+        },
+        {
+          "name": "firstSeen",
+          "type": "string"
+        },
+        {
+          "name": "lastSeen",
+          "type": "string"
+        },
+        {
+          "name": "osPlatform",
+          "type": "string"
+        },
+        {
+          "name": "version",
+          "type": "string"
+        },
+        {
+          "name": "osProcessor",
+          "type": "string"
+        },
+        {
+          "name": "lastIpAddress",
+          "type": "string"
+        },
+        {
+          "name": "lastExternalIpAddress",
+          "type": "string"
+        },
+        {
+          "name": "osBuild",
+          "type": "int"
+        },
+        {
+          "name": "healthStatus",
+          "type": "string"
+        },
+        {
+          "name": "rbacGroupId",
+          "type": "int"
+        },
+        {
+          "name": "rbacGroupName",
+          "type": "string"
+        },
+        {
+          "name": "riskScore",
+          "type": "string"
+        },
+        {
+          "name": "exposureLevel",
+          "type": "string"
+        },
+        {
+          "name": "isAadJoined",
+          "type": "boolean"
+        },
+        {
+          "name": "aadDeviceId",
+          "type": "string"
+        },
+        {
+          "name": "machineTags",
+          "type": "string"
+        }
       ]
     },
     {
@@ -385,29 +903,87 @@
       "destinationTable": "ApiSoftwareInventoryByMachine_CL",
       "dcrStreamName": "Custom-ApiSoftwareInventoryByMachine",
       "scheduleSetting": "Schedule_ApiSoftwareInventoryByMachine",
+      "ruleShardIndex": 1,
       "batchSize": 500,
       "pageSize": 10000,
       "collectionMode": "FullSnapshot",
       "columns": [
-        {"name": "TimeGenerated", "type": "datetime"},
-        {"name": "id", "type": "string"},
-        {"name": "deviceId", "type": "string"},
-        {"name": "deviceName", "type": "string"},
-        {"name": "osPlatform", "type": "string"},
-        {"name": "osVersion", "type": "string"},
-        {"name": "rbacGroupName", "type": "string"},
-        {"name": "softwareVendor", "type": "string"},
-        {"name": "softwareName", "type": "string"},
-        {"name": "softwareVersion", "type": "string"},
-        {"name": "installationType", "type": "string"},
-        {"name": "endOfSupportStatus", "type": "string"},
-        {"name": "endOfSupportDate", "type": "string"},
-        {"name": "numberOfWeaknesses", "type": "int"},
-        {"name": "diskPaths", "type": "string"},
-        {"name": "registryPaths", "type": "string"},
-        {"name": "softwareFirstSeenTimestamp", "type": "string"},
-        {"name": "endOfSupportUnderWarranty", "type": "boolean"},
-        {"name": "productCodeCpe", "type": "string"}
+        {
+          "name": "TimeGenerated",
+          "type": "datetime"
+        },
+        {
+          "name": "id",
+          "type": "string"
+        },
+        {
+          "name": "deviceId",
+          "type": "string"
+        },
+        {
+          "name": "deviceName",
+          "type": "string"
+        },
+        {
+          "name": "osPlatform",
+          "type": "string"
+        },
+        {
+          "name": "osVersion",
+          "type": "string"
+        },
+        {
+          "name": "rbacGroupName",
+          "type": "string"
+        },
+        {
+          "name": "softwareVendor",
+          "type": "string"
+        },
+        {
+          "name": "softwareName",
+          "type": "string"
+        },
+        {
+          "name": "softwareVersion",
+          "type": "string"
+        },
+        {
+          "name": "installationType",
+          "type": "string"
+        },
+        {
+          "name": "endOfSupportStatus",
+          "type": "string"
+        },
+        {
+          "name": "endOfSupportDate",
+          "type": "string"
+        },
+        {
+          "name": "numberOfWeaknesses",
+          "type": "int"
+        },
+        {
+          "name": "diskPaths",
+          "type": "string"
+        },
+        {
+          "name": "registryPaths",
+          "type": "string"
+        },
+        {
+          "name": "softwareFirstSeenTimestamp",
+          "type": "string"
+        },
+        {
+          "name": "endOfSupportUnderWarranty",
+          "type": "boolean"
+        },
+        {
+          "name": "productCodeCpe",
+          "type": "string"
+        }
       ]
     },
     {
@@ -418,21 +994,55 @@
       "destinationTable": "ApiNonCpeSoftwareInventory_CL",
       "dcrStreamName": "Custom-ApiNonCpeSoftwareInventory",
       "scheduleSetting": "Schedule_ApiNonCpeSoftwareInventory",
+      "ruleShardIndex": 1,
       "batchSize": 500,
       "pageSize": 10000,
       "collectionMode": "FullSnapshot",
       "columns": [
-        {"name": "TimeGenerated", "type": "datetime"},
-        {"name": "id", "type": "string"},
-        {"name": "deviceId", "type": "string"},
-        {"name": "deviceName", "type": "string"},
-        {"name": "osPlatform", "type": "string"},
-        {"name": "rbacGroupName", "type": "string"},
-        {"name": "softwareVendor", "type": "string"},
-        {"name": "softwareName", "type": "string"},
-        {"name": "softwareVersion", "type": "string"},
-        {"name": "diskPaths", "type": "string"},
-        {"name": "registryPaths", "type": "string"}
+        {
+          "name": "TimeGenerated",
+          "type": "datetime"
+        },
+        {
+          "name": "id",
+          "type": "string"
+        },
+        {
+          "name": "deviceId",
+          "type": "string"
+        },
+        {
+          "name": "deviceName",
+          "type": "string"
+        },
+        {
+          "name": "osPlatform",
+          "type": "string"
+        },
+        {
+          "name": "rbacGroupName",
+          "type": "string"
+        },
+        {
+          "name": "softwareVendor",
+          "type": "string"
+        },
+        {
+          "name": "softwareName",
+          "type": "string"
+        },
+        {
+          "name": "softwareVersion",
+          "type": "string"
+        },
+        {
+          "name": "diskPaths",
+          "type": "string"
+        },
+        {
+          "name": "registryPaths",
+          "type": "string"
+        }
       ]
     },
     {
@@ -443,31 +1053,95 @@
       "destinationTable": "ApiRecommendations_CL",
       "dcrStreamName": "Custom-ApiRecommendations",
       "scheduleSetting": "Schedule_ApiRecommendations",
+      "ruleShardIndex": 1,
       "batchSize": 500,
       "pageSize": 10000,
       "collectionMode": "FullSnapshot",
       "columns": [
-        {"name": "TimeGenerated", "type": "datetime"},
-        {"name": "id", "type": "string"},
-        {"name": "productName", "type": "string"},
-        {"name": "recommendationName", "type": "string"},
-        {"name": "weaknesses", "type": "int"},
-        {"name": "vendor", "type": "string"},
-        {"name": "recommendedVersion", "type": "string"},
-        {"name": "recommendationCategory", "type": "string"},
-        {"name": "subCategory", "type": "string"},
-        {"name": "severityScore", "type": "real"},
-        {"name": "publicExploit", "type": "boolean"},
-        {"name": "activeAlert", "type": "boolean"},
-        {"name": "associatedThreats", "type": "string"},
-        {"name": "remediationType", "type": "string"},
-        {"name": "status", "type": "string"},
-        {"name": "configScoreImpact", "type": "real"},
-        {"name": "exposureImpact", "type": "real"},
-        {"name": "totalMachineCount", "type": "int"},
-        {"name": "exposedMachinesCount", "type": "int"},
-        {"name": "nonProductivityImpactedAssets", "type": "int"},
-        {"name": "relatedComponent", "type": "string"}
+        {
+          "name": "TimeGenerated",
+          "type": "datetime"
+        },
+        {
+          "name": "id",
+          "type": "string"
+        },
+        {
+          "name": "productName",
+          "type": "string"
+        },
+        {
+          "name": "recommendationName",
+          "type": "string"
+        },
+        {
+          "name": "weaknesses",
+          "type": "int"
+        },
+        {
+          "name": "vendor",
+          "type": "string"
+        },
+        {
+          "name": "recommendedVersion",
+          "type": "string"
+        },
+        {
+          "name": "recommendationCategory",
+          "type": "string"
+        },
+        {
+          "name": "subCategory",
+          "type": "string"
+        },
+        {
+          "name": "severityScore",
+          "type": "real"
+        },
+        {
+          "name": "publicExploit",
+          "type": "boolean"
+        },
+        {
+          "name": "activeAlert",
+          "type": "boolean"
+        },
+        {
+          "name": "associatedThreats",
+          "type": "string"
+        },
+        {
+          "name": "remediationType",
+          "type": "string"
+        },
+        {
+          "name": "status",
+          "type": "string"
+        },
+        {
+          "name": "configScoreImpact",
+          "type": "real"
+        },
+        {
+          "name": "exposureImpact",
+          "type": "real"
+        },
+        {
+          "name": "totalMachineCount",
+          "type": "int"
+        },
+        {
+          "name": "exposedMachinesCount",
+          "type": "int"
+        },
+        {
+          "name": "nonProductivityImpactedAssets",
+          "type": "int"
+        },
+        {
+          "name": "relatedComponent",
+          "type": "string"
+        }
       ]
     },
     {
@@ -478,24 +1152,67 @@
       "destinationTable": "ApiSecureConfigurationAssessmentByMachine_CL",
       "dcrStreamName": "Custom-ApiSecureConfigurationAssessmentByMachine",
       "scheduleSetting": "Schedule_ApiSecureConfigurationAssessmentByMachine",
+      "ruleShardIndex": 1,
       "batchSize": 500,
       "pageSize": 10000,
       "collectionMode": "FullSnapshot",
       "columns": [
-        {"name": "TimeGenerated", "type": "datetime"},
-        {"name": "id", "type": "string"},
-        {"name": "deviceId", "type": "string"},
-        {"name": "deviceName", "type": "string"},
-        {"name": "osPlatform", "type": "string"},
-        {"name": "rbacGroupId", "type": "int"},
-        {"name": "rbacGroupName", "type": "string"},
-        {"name": "configurationId", "type": "string"},
-        {"name": "configurationCategory", "type": "string"},
-        {"name": "configurationSubcategory", "type": "string"},
-        {"name": "configurationImpact", "type": "real"},
-        {"name": "isCompliant", "type": "boolean"},
-        {"name": "isApplicable", "type": "boolean"},
-        {"name": "isExpectedUserImpact", "type": "boolean"}
+        {
+          "name": "TimeGenerated",
+          "type": "datetime"
+        },
+        {
+          "name": "id",
+          "type": "string"
+        },
+        {
+          "name": "deviceId",
+          "type": "string"
+        },
+        {
+          "name": "deviceName",
+          "type": "string"
+        },
+        {
+          "name": "osPlatform",
+          "type": "string"
+        },
+        {
+          "name": "rbacGroupId",
+          "type": "int"
+        },
+        {
+          "name": "rbacGroupName",
+          "type": "string"
+        },
+        {
+          "name": "configurationId",
+          "type": "string"
+        },
+        {
+          "name": "configurationCategory",
+          "type": "string"
+        },
+        {
+          "name": "configurationSubcategory",
+          "type": "string"
+        },
+        {
+          "name": "configurationImpact",
+          "type": "real"
+        },
+        {
+          "name": "isCompliant",
+          "type": "boolean"
+        },
+        {
+          "name": "isApplicable",
+          "type": "boolean"
+        },
+        {
+          "name": "isExpectedUserImpact",
+          "type": "boolean"
+        }
       ]
     },
     {
@@ -506,30 +1223,91 @@
       "destinationTable": "ApiVulnerabilitiesCatalog_CL",
       "dcrStreamName": "Custom-ApiVulnerabilitiesCatalog",
       "scheduleSetting": "Schedule_ApiVulnerabilitiesCatalog",
+      "ruleShardIndex": 1,
       "batchSize": 500,
       "pageSize": 10000,
       "collectionMode": "FullSnapshot",
       "columns": [
-        {"name": "TimeGenerated", "type": "datetime"},
-        {"name": "id", "type": "string"},
-        {"name": "name", "type": "string"},
-        {"name": "description", "type": "string"},
-        {"name": "severity", "type": "string"},
-        {"name": "cvssV3", "type": "real"},
-        {"name": "cvssVector", "type": "string"},
-        {"name": "exposedMachines", "type": "int"},
-        {"name": "publishedOn", "type": "string"},
-        {"name": "updatedOn", "type": "string"},
-        {"name": "firstDetected", "type": "string"},
-        {"name": "publicExploit", "type": "boolean"},
-        {"name": "exploitVerified", "type": "boolean"},
-        {"name": "exploitInKit", "type": "boolean"},
-        {"name": "exploitTypes", "type": "string"},
-        {"name": "exploitUris", "type": "string"},
-        {"name": "cveSupportability", "type": "string"},
-        {"name": "tags", "type": "string"},
-        {"name": "epss", "type": "real"},
-        {"name": "status", "type": "string"}
+        {
+          "name": "TimeGenerated",
+          "type": "datetime"
+        },
+        {
+          "name": "id",
+          "type": "string"
+        },
+        {
+          "name": "name",
+          "type": "string"
+        },
+        {
+          "name": "description",
+          "type": "string"
+        },
+        {
+          "name": "severity",
+          "type": "string"
+        },
+        {
+          "name": "cvssV3",
+          "type": "real"
+        },
+        {
+          "name": "cvssVector",
+          "type": "string"
+        },
+        {
+          "name": "exposedMachines",
+          "type": "int"
+        },
+        {
+          "name": "publishedOn",
+          "type": "string"
+        },
+        {
+          "name": "updatedOn",
+          "type": "string"
+        },
+        {
+          "name": "firstDetected",
+          "type": "string"
+        },
+        {
+          "name": "publicExploit",
+          "type": "boolean"
+        },
+        {
+          "name": "exploitVerified",
+          "type": "boolean"
+        },
+        {
+          "name": "exploitInKit",
+          "type": "boolean"
+        },
+        {
+          "name": "exploitTypes",
+          "type": "string"
+        },
+        {
+          "name": "exploitUris",
+          "type": "string"
+        },
+        {
+          "name": "cveSupportability",
+          "type": "string"
+        },
+        {
+          "name": "tags",
+          "type": "string"
+        },
+        {
+          "name": "epss",
+          "type": "real"
+        },
+        {
+          "name": "status",
+          "type": "string"
+        }
       ]
     },
     {
@@ -540,23 +1318,63 @@
       "destinationTable": "ApiBrowserExtensionsInventory_CL",
       "dcrStreamName": "Custom-ApiBrowserExtensionsInventory",
       "scheduleSetting": "Schedule_ApiBrowserExtensionsInventory",
+      "ruleShardIndex": 1,
       "batchSize": 500,
       "pageSize": 10000,
       "collectionMode": "FullSnapshot",
       "columns": [
-        {"name": "TimeGenerated", "type": "datetime"},
-        {"name": "id", "type": "string"},
-        {"name": "deviceId", "type": "string"},
-        {"name": "deviceName", "type": "string"},
-        {"name": "browserName", "type": "string"},
-        {"name": "extensionId", "type": "string"},
-        {"name": "extensionName", "type": "string"},
-        {"name": "extensionDescription", "type": "string"},
-        {"name": "extensionVersion", "type": "string"},
-        {"name": "extensionRisk", "type": "string"},
-        {"name": "extensionVendor", "type": "string"},
-        {"name": "isActivated", "type": "string"},
-        {"name": "installationTime", "type": "string"}
+        {
+          "name": "TimeGenerated",
+          "type": "datetime"
+        },
+        {
+          "name": "id",
+          "type": "string"
+        },
+        {
+          "name": "deviceId",
+          "type": "string"
+        },
+        {
+          "name": "deviceName",
+          "type": "string"
+        },
+        {
+          "name": "browserName",
+          "type": "string"
+        },
+        {
+          "name": "extensionId",
+          "type": "string"
+        },
+        {
+          "name": "extensionName",
+          "type": "string"
+        },
+        {
+          "name": "extensionDescription",
+          "type": "string"
+        },
+        {
+          "name": "extensionVersion",
+          "type": "string"
+        },
+        {
+          "name": "extensionRisk",
+          "type": "string"
+        },
+        {
+          "name": "extensionVendor",
+          "type": "string"
+        },
+        {
+          "name": "isActivated",
+          "type": "string"
+        },
+        {
+          "name": "installationTime",
+          "type": "string"
+        }
       ]
     },
     {
@@ -567,21 +1385,55 @@
       "destinationTable": "ApiBrowserExtensionPermissions_CL",
       "dcrStreamName": "Custom-ApiBrowserExtensionPermissions",
       "scheduleSetting": "Schedule_ApiBrowserExtensionPermissions",
+      "ruleShardIndex": 2,
       "batchSize": 500,
       "pageSize": 10000,
       "collectionMode": "FullSnapshot",
       "columns": [
-        {"name": "TimeGenerated", "type": "datetime"},
-        {"name": "id", "type": "string"},
-        {"name": "browserName", "type": "string"},
-        {"name": "extensionId", "type": "string"},
-        {"name": "extensionName", "type": "string"},
-        {"name": "extensionDescription", "type": "string"},
-        {"name": "permissionId", "type": "string"},
-        {"name": "permissionName", "type": "string"},
-        {"name": "permissionDescription", "type": "string"},
-        {"name": "permissionRisk", "type": "string"},
-        {"name": "isPermissionRequired", "type": "string"}
+        {
+          "name": "TimeGenerated",
+          "type": "datetime"
+        },
+        {
+          "name": "id",
+          "type": "string"
+        },
+        {
+          "name": "browserName",
+          "type": "string"
+        },
+        {
+          "name": "extensionId",
+          "type": "string"
+        },
+        {
+          "name": "extensionName",
+          "type": "string"
+        },
+        {
+          "name": "extensionDescription",
+          "type": "string"
+        },
+        {
+          "name": "permissionId",
+          "type": "string"
+        },
+        {
+          "name": "permissionName",
+          "type": "string"
+        },
+        {
+          "name": "permissionDescription",
+          "type": "string"
+        },
+        {
+          "name": "permissionRisk",
+          "type": "string"
+        },
+        {
+          "name": "isPermissionRequired",
+          "type": "string"
+        }
       ]
     },
     {
@@ -592,25 +1444,71 @@
       "destinationTable": "ApiCertificateInventoryAssessment_CL",
       "dcrStreamName": "Custom-ApiCertificateInventoryAssessment",
       "scheduleSetting": "Schedule_ApiCertificateInventoryAssessment",
+      "ruleShardIndex": 2,
       "batchSize": 500,
       "pageSize": 10000,
       "collectionMode": "FullSnapshot",
       "columns": [
-        {"name": "TimeGenerated", "type": "datetime"},
-        {"name": "id", "type": "string"},
-        {"name": "deviceId", "type": "string"},
-        {"name": "deviceName", "type": "string"},
-        {"name": "thumbprint", "type": "string"},
-        {"name": "path", "type": "string"},
-        {"name": "serialNumber", "type": "string"},
-        {"name": "friendlyName", "type": "string"},
-        {"name": "signatureAlgorithm", "type": "string"},
-        {"name": "keySize", "type": "string"},
-        {"name": "expirationDate", "type": "string"},
-        {"name": "issueDate", "type": "string"},
-        {"name": "subjectType", "type": "string"},
-        {"name": "keyUsage", "type": "string"},
-        {"name": "extendedKeyUsage", "type": "string"}
+        {
+          "name": "TimeGenerated",
+          "type": "datetime"
+        },
+        {
+          "name": "id",
+          "type": "string"
+        },
+        {
+          "name": "deviceId",
+          "type": "string"
+        },
+        {
+          "name": "deviceName",
+          "type": "string"
+        },
+        {
+          "name": "thumbprint",
+          "type": "string"
+        },
+        {
+          "name": "path",
+          "type": "string"
+        },
+        {
+          "name": "serialNumber",
+          "type": "string"
+        },
+        {
+          "name": "friendlyName",
+          "type": "string"
+        },
+        {
+          "name": "signatureAlgorithm",
+          "type": "string"
+        },
+        {
+          "name": "keySize",
+          "type": "string"
+        },
+        {
+          "name": "expirationDate",
+          "type": "string"
+        },
+        {
+          "name": "issueDate",
+          "type": "string"
+        },
+        {
+          "name": "subjectType",
+          "type": "string"
+        },
+        {
+          "name": "keyUsage",
+          "type": "string"
+        },
+        {
+          "name": "extendedKeyUsage",
+          "type": "string"
+        }
       ]
     },
     {
@@ -621,19 +1519,47 @@
       "destinationTable": "ApiHardwareFirmwareAssessment_CL",
       "dcrStreamName": "Custom-ApiHardwareFirmwareAssessment",
       "scheduleSetting": "Schedule_ApiHardwareFirmwareAssessment",
+      "ruleShardIndex": 2,
       "batchSize": 500,
       "pageSize": 10000,
       "collectionMode": "FullSnapshot",
       "columns": [
-        {"name": "TimeGenerated", "type": "datetime"},
-        {"name": "id", "type": "string"},
-        {"name": "deviceId", "type": "string"},
-        {"name": "deviceName", "type": "string"},
-        {"name": "componentType", "type": "string"},
-        {"name": "manufacturer", "type": "string"},
-        {"name": "componentName", "type": "string"},
-        {"name": "componentFamily", "type": "string"},
-        {"name": "componentVersion", "type": "string"}
+        {
+          "name": "TimeGenerated",
+          "type": "datetime"
+        },
+        {
+          "name": "id",
+          "type": "string"
+        },
+        {
+          "name": "deviceId",
+          "type": "string"
+        },
+        {
+          "name": "deviceName",
+          "type": "string"
+        },
+        {
+          "name": "componentType",
+          "type": "string"
+        },
+        {
+          "name": "manufacturer",
+          "type": "string"
+        },
+        {
+          "name": "componentName",
+          "type": "string"
+        },
+        {
+          "name": "componentFamily",
+          "type": "string"
+        },
+        {
+          "name": "componentVersion",
+          "type": "string"
+        }
       ]
     },
     {
@@ -644,28 +1570,77 @@
       "destinationTable": "NistCveCatalog_CL",
       "dcrStreamName": "Custom-NistCveCatalog",
       "scheduleSetting": "Schedule_NistCveCatalog",
+      "ruleShardIndex": 2,
       "batchSize": 250,
       "pageSize": 2000,
       "collectionMode": "FullSnapshot",
       "requestDelayMs": 1200,
       "transformMode": "cve_summary",
       "columns": [
-        {"name": "TimeGenerated", "type": "datetime"},
-        {"name": "id", "type": "string"},
-        {"name": "sourceIdentifier", "type": "string"},
-        {"name": "published", "type": "string"},
-        {"name": "lastModified", "type": "string"},
-        {"name": "vulnStatus", "type": "string"},
-        {"name": "descriptions", "type": "string"},
-        {"name": "weaknesses", "type": "string"},
-        {"name": "references", "type": "string"},
-        {"name": "metrics_cvssMetricV31", "type": "string"},
-        {"name": "metrics_cvssMetricV30", "type": "string"},
-        {"name": "metrics_cvssMetricV2", "type": "string"},
-        {"name": "cisaExploitAdd", "type": "string"},
-        {"name": "cisaActionDue", "type": "string"},
-        {"name": "cisaRequiredAction", "type": "string"},
-        {"name": "cisaVulnerabilityName", "type": "string"}
+        {
+          "name": "TimeGenerated",
+          "type": "datetime"
+        },
+        {
+          "name": "id",
+          "type": "string"
+        },
+        {
+          "name": "sourceIdentifier",
+          "type": "string"
+        },
+        {
+          "name": "published",
+          "type": "string"
+        },
+        {
+          "name": "lastModified",
+          "type": "string"
+        },
+        {
+          "name": "vulnStatus",
+          "type": "string"
+        },
+        {
+          "name": "descriptions",
+          "type": "string"
+        },
+        {
+          "name": "weaknesses",
+          "type": "string"
+        },
+        {
+          "name": "references",
+          "type": "string"
+        },
+        {
+          "name": "metrics_cvssMetricV31",
+          "type": "string"
+        },
+        {
+          "name": "metrics_cvssMetricV30",
+          "type": "string"
+        },
+        {
+          "name": "metrics_cvssMetricV2",
+          "type": "string"
+        },
+        {
+          "name": "cisaExploitAdd",
+          "type": "string"
+        },
+        {
+          "name": "cisaActionDue",
+          "type": "string"
+        },
+        {
+          "name": "cisaRequiredAction",
+          "type": "string"
+        },
+        {
+          "name": "cisaVulnerabilityName",
+          "type": "string"
+        }
       ]
     },
     {
@@ -676,22 +1651,53 @@
       "destinationTable": "NistCpeConfigurations_CL",
       "dcrStreamName": "Custom-NistCpeConfigurations",
       "scheduleSetting": "Schedule_NistCpeConfigurations",
+      "ruleShardIndex": 2,
       "batchSize": 250,
       "pageSize": 2000,
       "collectionMode": "FullSnapshot",
       "requestDelayMs": 1200,
       "transformMode": "cpe_match",
       "columns": [
-        {"name": "TimeGenerated", "type": "datetime"},
-        {"name": "CveId", "type": "string"},
-        {"name": "Operator", "type": "string"},
-        {"name": "vulnerable", "type": "boolean"},
-        {"name": "criteria", "type": "string"},
-        {"name": "matchCriteriaId", "type": "string"},
-        {"name": "versionStartIncluding", "type": "string"},
-        {"name": "versionEndIncluding", "type": "string"},
-        {"name": "versionStartExcluding", "type": "string"},
-        {"name": "versionEndExcluding", "type": "string"}
+        {
+          "name": "TimeGenerated",
+          "type": "datetime"
+        },
+        {
+          "name": "CveId",
+          "type": "string"
+        },
+        {
+          "name": "Operator",
+          "type": "string"
+        },
+        {
+          "name": "vulnerable",
+          "type": "boolean"
+        },
+        {
+          "name": "criteria",
+          "type": "string"
+        },
+        {
+          "name": "matchCriteriaId",
+          "type": "string"
+        },
+        {
+          "name": "versionStartIncluding",
+          "type": "string"
+        },
+        {
+          "name": "versionEndIncluding",
+          "type": "string"
+        },
+        {
+          "name": "versionStartExcluding",
+          "type": "string"
+        },
+        {
+          "name": "versionEndExcluding",
+          "type": "string"
+        }
       ]
     }
   ]
