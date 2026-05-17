@@ -895,6 +895,11 @@ try {
     }
 
     $appSettingsBody = @{ properties = @{ WEBSITE_RUN_FROM_PACKAGE = $packageUrl } } | ConvertTo-Json -Depth 5 -Compress
+    # The az CLI on Windows strips double quotes from --body arguments before sending the
+    # request, which corrupts JSON containing URLs (https://...). The documented workaround
+    # is to write the body to a UTF-8 (no BOM) file and pass it as "--body @path".
+    $bodyFile = Join-Path $tmpRoot "rfp-appsetting.json"
+    [System.IO.File]::WriteAllText($bodyFile, $appSettingsBody, [System.Text.UTF8Encoding]::new($false))
     Write-Host "Updating WEBSITE_RUN_FROM_PACKAGE app setting with remote package URL..."
     Write-Host "Package URL (SAS redacted): $($blobBaseUrl.TrimEnd('/'))/$containerName/$blobName?<sas-token-redacted>"
     Invoke-AzCli -Args @(
@@ -902,7 +907,7 @@ try {
         "--method", "PATCH",
         "--url", "$resourceManagerEndpoint$functionAppId/config/appsettings?api-version=2023-12-01",
         "--headers", "Content-Type=application/json",
-        "--body", $appSettingsBody,
+        "--body", "@$bodyFile",
         "--only-show-errors",
         "-o", "json"
     ) | Out-Null
