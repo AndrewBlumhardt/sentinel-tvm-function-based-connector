@@ -306,6 +306,24 @@ if (-not (Test-Path $datasetConfigPath)) {
     Stop-WithError "Dataset config file not found at $datasetConfigPath"
 }
 
+$datasetConfig = Get-Content -Path $datasetConfigPath -Raw | ConvertFrom-Json
+$datasetNames = @($datasetConfig.datasets | ForEach-Object { $_.name })
+$templateText = Get-Content -Path $templatePath -Raw
+$mappedSettingNames = [regex]::Matches($templateText, 'DcrRuleId_[A-Za-z0-9]+') | ForEach-Object { $_.Value } | Sort-Object -Unique
+$expectedSettingNames = @($datasetNames | ForEach-Object { "DcrRuleId_$($_)" } | Sort-Object)
+$missingSettings = @($expectedSettingNames | Where-Object { $_ -notin $mappedSettingNames })
+$extraSettings = @($mappedSettingNames | Where-Object { $_ -notin $expectedSettingNames })
+if ($missingSettings.Count -gt 0 -or $extraSettings.Count -gt 0) {
+    $message = "Dataset-to-DCR app setting mapping drift detected between datasets.json and infra/main.bicep."
+    if ($missingSettings.Count -gt 0) {
+        $message += " Missing: $($missingSettings -join ', ')."
+    }
+    if ($extraSettings.Count -gt 0) {
+        $message += " Extra: $($extraSettings -join ', ')."
+    }
+    Stop-WithError $message
+}
+
 if ([string]::IsNullOrWhiteSpace($WorkspaceResourceGroupName)) {
     $WorkspaceResourceGroupName = $ResourceGroupName
 }
