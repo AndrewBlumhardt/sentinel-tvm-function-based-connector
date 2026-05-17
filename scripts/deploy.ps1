@@ -692,6 +692,17 @@ try {
             )).Trim()
         }
 
+        Write-Host "Remote package fallback context:"
+        Write-Host "  Storage account scope: $storageAccountId"
+        Write-Host "  Deploy principal type: $($accountInfo.user.type)"
+        Write-Host "  Deploy principal name: $($accountInfo.user.name)"
+        if (-not [string]::IsNullOrWhiteSpace($deployIdentityObjectId)) {
+            Write-Host "  Deploy principal object ID: $deployIdentityObjectId"
+        }
+        else {
+            Write-Warning "Unable to resolve deploy principal object ID for RBAC assignment."
+        }
+
         $uploadSucceeded = $false
         $containerEnsured = $false
         $uploadAttempts = 10
@@ -705,6 +716,9 @@ try {
         $rbacCreated = Ensure-RoleAssignment -PrincipalId $deployIdentityObjectId -RoleName "Storage Blob Data Owner" -Scope $storageAccountId
         if ($rbacCreated) {
             Write-Host "Role assignment created. Waiting for RBAC propagation before retrying storage upload..."
+        }
+        else {
+            Write-Host "Role assignment already exists or is awaiting propagation. Continuing with upload retries..."
         }
 
         for ($uploadAttempt = 1; $uploadAttempt -le $uploadAttempts; $uploadAttempt++) {
