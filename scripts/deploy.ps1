@@ -823,13 +823,16 @@ try {
         }
 
         $appSettingsBody = @{ properties = @{ WEBSITE_RUN_FROM_PACKAGE = $packageUrl } } | ConvertTo-Json -Depth 5 -Compress
+        Write-Host "Updating WEBSITE_RUN_FROM_PACKAGE app setting with remote package URL..."
+        Write-Host "Package URL: $packageUrl"
         Invoke-AzCli -Args @(
             "rest",
             "--method", "PATCH",
             "--url", "$resourceManagerEndpoint$functionAppId/config/appsettings?api-version=2023-12-01",
+            "--headers", "Content-Type=application/json",
             "--body", $appSettingsBody,
             "--only-show-errors",
-            "-o", "none"
+            "-o", "json"
         ) | Out-Null
     }
     Write-Host "Function package deployed successfully."
