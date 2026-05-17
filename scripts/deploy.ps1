@@ -644,44 +644,134 @@ try {
         "https://$resolvedFunctionAppName.scm.azurewebsites.net"
     }
 
+    function Invoke-RunFromPackageUrlDeployment {
+        if ([string]::IsNullOrWhiteSpace($storageAccountId)) {
+            Stop-WithError "Kudu deployment failed and storage account output is unavailable for run-from-package URL fallback."
+        }
+
+        $storageAccountName = ($storageAccountId -split "/")[-1]
+        $blobBaseUrl = (Invoke-AzCli -Args @(
+            "storage", "account", "show",
+            "--ids", $storageAccountId,
+            "--query", "primaryEndpoints.blob",
+            "-o", "tsv"
+        )).Trim()
+        if ([string]::IsNullOrWhiteSpace($blobBaseUrl)) {
+            Stop-WithError "Failed to resolve blob endpoint for storage account '$storageAccountName'."
+        }
+
+        $containerName = "function-releases"
+        $blobName = "packages/{0}-{1}.zip" -f (Get-Date -Format "yyyyMMddHHmmss"), [guid]::NewGuid().ToString("N")
+
+        Write-Host "Kudu mount is unavailable. Uploading package to blob storage for run-from-package URL deployment..."
+        Invoke-AzCli -Args @(
+            "storage", "container", "create",
+            "--account-name", $storageAccountName,
+            "--name", $containerName,
+            "--auth-mode", "login",
+            "--public-access", "off",
+            "--only-show-errors",
+            "-o", "none"
+        ) | Out-Null
+
+        Invoke-AzCli -Args @(
+            "storage", "blob", "upload",
+            "--account-name", $storageAccountName,
+            "--container-name", $containerName,
+            "--name", $blobName,
+            "--file", $packagePath,
+            "--overwrite", "true",
+            "--auth-mode", "login",
+            "--only-show-errors",
+            "-o", "none"
+        ) | Out-Null
+
+        $sasExpiry = (Get-Date).ToUniversalTime().AddHours(12).ToString("yyyy-MM-ddTHH:mmZ")
+        $sasToken = (Invoke-AzCli -Args @(
+            "storage", "blob", "generate-sas",
+            "--account-name", $storageAccountName,
+            "--container-name", $containerName,
+            "--name", $blobName,
+            "--permissions", "r",
+            "--expiry", $sasExpiry,
+            "--https-only",
+            "--as-user",
+            "--auth-mode", "login",
+            "--only-show-errors",
+            "-o", "tsv"
+        )).Trim()
+        if ([string]::IsNullOrWhiteSpace($sasToken)) {
+            Stop-WithError "Failed to generate SAS token for fallback package URL deployment."
+        }
+
+        $packageUrl = "{0}{1}/{2}`?{3}" -f $blobBaseUrl.TrimEnd('/'), $containerName, $blobName, $sasToken
+
+        Invoke-AzCli -Args @(
+            "functionapp", "config", "appsettings", "set",
+            "--name", $resolvedFunctionAppName,
+            "--resource-group", $ResourceGroupName,
+            "--only-show-errors",
+            "-o", "none",
+            "--settings", "WEBSITE_RUN_FROM_PACKAGE=$packageUrl", "SCM_DO_BUILD_DURING_DEPLOYMENT=false"
+        ) | Out-Null
+
+        Write-Host "Run-from-package URL fallback configured successfully."
+    }
+
     Write-Host "Deploying function package to Kudu..."
     $headers = @{ Authorization = "Bearer $token" }
-    $deployResponse = Invoke-WebRequest -Uri "$kuduBase/api/zipdeploy?isAsync=true" -Method Post -Headers $headers -InFile $packagePath -ContentType "application/zip"
-
-    $pollUrl = $deployResponse.Headers["Location"]
-    if ($pollUrl -is [System.Array]) {
-        $pollUrl = $pollUrl | Select-Object -First 1
+    $deployResponse = $null
+    $usedFallback = $false
+    try {
+        $deployResponse = Invoke-WebRequest -Uri "$kuduBase/api/zipdeploy?isAsync=true" -Method Post -Headers $headers -InFile $packagePath -ContentType "application/zip"
     }
-    $pollUrl = [string]$pollUrl
-    if ([string]::IsNullOrWhiteSpace($pollUrl)) {
-        $pollUrl = "$kuduBase/api/deployments/latest"
+    catch {
+        $kuduError = $_.Exception.Message
+        if ($kuduError -match "Kudu file share was not mounted") {
+            Invoke-RunFromPackageUrlDeployment
+            $usedFallback = $true
+        }
+        else {
+            throw
+        }
     }
 
-    Write-Host "Polling Kudu deployment status..."
-    $kuduStatus = $null
-    for ($attempt = 1; $attempt -le 90; $attempt++) {
-        Start-Sleep -Seconds 5
-        $kuduStatus = Invoke-RestMethod -Uri $pollUrl -Method Get -Headers $headers
-        $statusCode = [int]$kuduStatus.status
-
-        if ($statusCode -eq 4) {
-            break
+    if (-not $usedFallback) {
+        $pollUrl = $deployResponse.Headers["Location"]
+        if ($pollUrl -is [System.Array]) {
+            $pollUrl = $pollUrl | Select-Object -First 1
+        }
+        $pollUrl = [string]$pollUrl
+        if ([string]::IsNullOrWhiteSpace($pollUrl)) {
+            $pollUrl = "$kuduBase/api/deployments/latest"
         }
 
-        if ($statusCode -eq 3) {
-            $deployId = $kuduStatus.id
-            $logDetails = ""
-            if (-not [string]::IsNullOrWhiteSpace($deployId)) {
-                $logEntries = Invoke-RestMethod -Uri "$kuduBase/api/deployments/$deployId/log" -Method Get -Headers $headers
-                $logDetails = ($logEntries | ConvertTo-Json -Depth 12)
+        Write-Host "Polling Kudu deployment status..."
+        $kuduStatus = $null
+        for ($attempt = 1; $attempt -le 90; $attempt++) {
+            Start-Sleep -Seconds 5
+            $kuduStatus = Invoke-RestMethod -Uri $pollUrl -Method Get -Headers $headers
+            $statusCode = [int]$kuduStatus.status
+
+            if ($statusCode -eq 4) {
+                break
             }
 
-            Stop-WithError "Kudu deployment failed. Details: $($kuduStatus | ConvertTo-Json -Depth 8) Log: $logDetails"
-        }
-    }
+            if ($statusCode -eq 3) {
+                $deployId = $kuduStatus.id
+                $logDetails = ""
+                if (-not [string]::IsNullOrWhiteSpace($deployId)) {
+                    $logEntries = Invoke-RestMethod -Uri "$kuduBase/api/deployments/$deployId/log" -Method Get -Headers $headers
+                    $logDetails = ($logEntries | ConvertTo-Json -Depth 12)
+                }
 
-    if ($null -eq $kuduStatus -or [int]$kuduStatus.status -ne 4) {
-        Stop-WithError "Kudu deployment did not complete successfully within timeout window."
+                Stop-WithError "Kudu deployment failed. Details: $($kuduStatus | ConvertTo-Json -Depth 8) Log: $logDetails"
+            }
+        }
+
+        if ($null -eq $kuduStatus -or [int]$kuduStatus.status -ne 4) {
+            Stop-WithError "Kudu deployment did not complete successfully within timeout window."
+        }
     }
 
     Write-Host "Restarting Function App after deployment..."
