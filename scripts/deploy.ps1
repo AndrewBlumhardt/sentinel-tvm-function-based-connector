@@ -693,62 +693,69 @@ try {
         }
 
         $uploadSucceeded = $false
-        try {
-            Invoke-AzCli -Args @(
-                "storage", "container", "create",
-                "--account-name", $storageAccountName,
-                "--name", $containerName,
-                "--auth-mode", "login",
-                "--public-access", "off",
-                "--only-show-errors",
-                "-o", "none"
-            ) | Out-Null
-            Invoke-AzCli -Args @(
-                "storage", "blob", "upload",
-                "--account-name", $storageAccountName,
-                "--container-name", $containerName,
-                "--name", $blobName,
-                "--file", $packagePath,
-                "--overwrite", "true",
-                "--auth-mode", "login",
-                "--only-show-errors",
-                "-o", "none"
-            ) | Out-Null
-            $uploadSucceeded = $true
+        $containerEnsured = $false
+        $uploadAttempts = 10
+        $retryDelaySeconds = 20
+
+        if ([string]::IsNullOrWhiteSpace($deployIdentityObjectId)) {
+            throw
         }
-        catch {
-            if ([string]::IsNullOrWhiteSpace($deployIdentityObjectId)) {
-                throw
-            }
 
-            Write-Host "Assigning 'Storage Blob Data Contributor' to deploy identity for AAD blob upload..."
-            $rbacCreated = Ensure-RoleAssignment -PrincipalId $deployIdentityObjectId -RoleName "Storage Blob Data Contributor" -Scope $storageAccountId
-            if ($rbacCreated) {
-                Write-Host "Role assignment created. Waiting 30 seconds for RBAC propagation..."
-                Start-Sleep -Seconds 30
-            }
+        Write-Host "Assigning 'Storage Blob Data Owner' to deploy identity for AAD blob upload and user delegation SAS..."
+        $rbacCreated = Ensure-RoleAssignment -PrincipalId $deployIdentityObjectId -RoleName "Storage Blob Data Owner" -Scope $storageAccountId
+        if ($rbacCreated) {
+            Write-Host "Role assignment created. Waiting for RBAC propagation before retrying storage upload..."
+        }
 
-            Invoke-AzCli -Args @(
-                "storage", "container", "create",
-                "--account-name", $storageAccountName,
-                "--name", $containerName,
-                "--auth-mode", "login",
-                "--public-access", "off",
-                "--only-show-errors",
-                "-o", "none"
-            ) | Out-Null
-            Invoke-AzCli -Args @(
-                "storage", "blob", "upload",
-                "--account-name", $storageAccountName,
-                "--container-name", $containerName,
-                "--name", $blobName,
-                "--file", $packagePath,
-                "--overwrite", "true",
-                "--auth-mode", "login",
-                "--only-show-errors",
-                "-o", "none"
-            ) | Out-Null
-            $uploadSucceeded = $true
+        for ($uploadAttempt = 1; $uploadAttempt -le $uploadAttempts; $uploadAttempt++) {
+            try {
+                if (-not $containerEnsured) {
+                    try {
+                        Invoke-AzCli -Args @(
+                            "storage", "container", "create",
+                            "--account-name", $storageAccountName,
+                            "--name", $containerName,
+                            "--auth-mode", "login",
+                            "--public-access", "off",
+                            "--only-show-errors",
+                            "-o", "none"
+                        ) | Out-Null
+                    }
+                    catch {
+                        $containerError = $_.Exception.Message
+                        if ($containerError -notmatch "already exists") {
+                            throw
+                        }
+                    }
+
+                    $containerEnsured = $true
+                }
+
+                Invoke-AzCli -Args @(
+                    "storage", "blob", "upload",
+                    "--account-name", $storageAccountName,
+                    "--container-name", $containerName,
+                    "--name", $blobName,
+                    "--file", $packagePath,
+                    "--overwrite", "true",
+                    "--auth-mode", "login",
+                    "--only-show-errors",
+                    "-o", "none"
+                ) | Out-Null
+                $uploadSucceeded = $true
+                break
+            }
+            catch {
+                $uploadError = $_.Exception.Message
+                if ($uploadAttempt -ge $uploadAttempts) {
+                    throw
+                }
+
+                $waitSeconds = [Math]::Min(300, $retryDelaySeconds * $uploadAttempt)
+                Write-Host "Storage upload still failing after RBAC assignment. Retrying in $waitSeconds seconds ($uploadAttempt/$uploadAttempts)..."
+                Write-Host "Last error: $uploadError"
+                Start-Sleep -Seconds $waitSeconds
+            }
         }
 
         if (-not $uploadSucceeded) {
