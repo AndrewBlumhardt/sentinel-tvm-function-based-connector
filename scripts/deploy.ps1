@@ -704,7 +704,7 @@ try {
             Stop-WithError "Failed to generate SAS token for fallback package URL deployment."
         }
 
-        $packageUrl = "{0}{1}/{2}`?{3}" -f $blobBaseUrl.TrimEnd('/'), $containerName, $blobName, $sasToken
+        $packageUrl = "{0}/{1}/{2}`?{3}" -f $blobBaseUrl.TrimEnd('/'), $containerName, $blobName, $sasToken
 
         Invoke-AzCli -Args @(
             "functionapp", "config", "appsettings", "set",
@@ -763,13 +763,20 @@ try {
                 if (-not [string]::IsNullOrWhiteSpace($deployId)) {
                     $logEntries = Invoke-RestMethod -Uri "$kuduBase/api/deployments/$deployId/log" -Method Get -Headers $headers
                     $logDetails = ($logEntries | ConvertTo-Json -Depth 12)
+
+                    if ($logDetails -match "Malformed SCM_RUN_FROM_PACKAGE") {
+                        Write-Host "Detected malformed SCM_RUN_FROM_PACKAGE during Kudu deployment. Switching to run-from-package URL fallback..."
+                        Invoke-RunFromPackageUrlDeployment
+                        $usedFallback = $true
+                        break
+                    }
                 }
 
                 Stop-WithError "Kudu deployment failed. Details: $($kuduStatus | ConvertTo-Json -Depth 8) Log: $logDetails"
             }
         }
 
-        if ($null -eq $kuduStatus -or [int]$kuduStatus.status -ne 4) {
+        if (-not $usedFallback -and ($null -eq $kuduStatus -or [int]$kuduStatus.status -ne 4)) {
             Stop-WithError "Kudu deployment did not complete successfully within timeout window."
         }
     }
