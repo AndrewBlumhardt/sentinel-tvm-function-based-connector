@@ -495,6 +495,8 @@ $appSettingsArgs = @(
     "functionapp", "config", "appsettings", "set",
     "--name", $resolvedFunctionAppName,
     "--resource-group", $ResourceGroupName,
+    "--only-show-errors",
+    "-o", "none",
     "--settings"
 ) + $datasetRuleSettings
 Invoke-AzCli -Args $appSettingsArgs | Out-Null
@@ -564,201 +566,136 @@ else {
 Start-Stage -Name "Function code deployment"
 
 $functionProjectRoot = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
-Write-Host "Packaging function code from '$functionProjectRoot' for '$resolvedFunctionAppName'..."
-$packagePath = Join-Path ([System.IO.Path]::GetTempPath()) ("{0}-{1}.zip" -f $resolvedFunctionAppName, [guid]::NewGuid().ToString('N'))
-$packOutputPath = $packagePath
-$originalFunctionsWorkerRuntime = $env:FUNCTIONS_WORKER_RUNTIME
-Push-Location $functionProjectRoot
+$tmpRoot = Join-Path ([System.IO.Path]::GetTempPath()) ("stvmt-deploy-{0}" -f [guid]::NewGuid().ToString("N"))
+$buildRoot = Join-Path $tmpRoot "build"
+$packagePath = Join-Path $tmpRoot "functionPackage.zip"
+
+New-Item -Path $buildRoot -ItemType Directory -Force | Out-Null
+
 try {
-    # Force runtime for pack to prevent inheriting invalid values like "None" from the shell.
-    $env:FUNCTIONS_WORKER_RUNTIME = "python"
+    Write-Host "Building deterministic function package from '$functionProjectRoot'..."
 
-    & $script:FuncCommand pack . --output $packOutputPath
-    if ($LASTEXITCODE -ne 0) {
-        Stop-WithError "Function package creation failed. See output above for details."
-    }
+    $requiredPaths = @(
+        "host.json",
+        "function_app.py",
+        "requirements.txt",
+        "Functions",
+        "Shared"
+    )
 
-    if (-not (Test-Path $packOutputPath)) {
-        Stop-WithError "Function package was not created at $packOutputPath."
-    }
-
-    if (Test-Path $packOutputPath -PathType Container) {
-        $nestedZip = Get-ChildItem -Path $packOutputPath -Filter "*.zip" -File | Select-Object -First 1
-        if (-not $nestedZip) {
-            Stop-WithError "Function package output '$packOutputPath' is a directory but no zip file was found inside it."
+    foreach ($item in $requiredPaths) {
+        $sourcePath = Join-Path $functionProjectRoot $item
+        if (-not (Test-Path $sourcePath)) {
+            Stop-WithError "Required package path '$item' was not found at '$sourcePath'."
         }
 
-        $packagePath = $nestedZip.FullName
+        Copy-Item -Path $sourcePath -Destination $buildRoot -Recurse -Force
     }
 
-    Write-Host "Setting WEBSITE_RUN_FROM_PACKAGE=0 before zip deployment to avoid storage key based package mounting..."
+    $pythonPackagesTarget = Join-Path $buildRoot ".python_packages\lib\site-packages"
+    New-Item -Path $pythonPackagesTarget -ItemType Directory -Force | Out-Null
+
+    Write-Host "Vendoring Python dependencies into package..."
+    Push-Location $functionProjectRoot
+    try {
+        & python -m pip install -r requirements.txt --target $pythonPackagesTarget --quiet
+        if ($LASTEXITCODE -ne 0) {
+            Stop-WithError "Python dependency packaging failed. Ensure python and pip are available and compatible with runtime 3.11."
+        }
+    }
+    finally {
+        Pop-Location
+    }
+
+    if (Test-Path $packagePath) {
+        Remove-Item $packagePath -Force
+    }
+
+    Compress-Archive -Path (Join-Path $buildRoot "*") -DestinationPath $packagePath -Force
+
+    Write-Host "Clearing run-from-package settings before push deployment..."
+    & az functionapp config appsettings delete --name $resolvedFunctionAppName --resource-group $ResourceGroupName --setting-names SCM_RUN_FROM_PACKAGE WEBSITE_RUN_FROM_PACKAGE --only-show-errors -o none 2>$null
+
+    $armResource = if ($effectiveCloud -eq "AzureUSGovernment") { "https://management.usgovcloudapi.net" } else { "https://management.azure.com" }
+    $rawToken = (& az account get-access-token --resource $armResource --query accessToken -o tsv --only-show-errors 2>&1 | Out-String)
+    $token = ($rawToken -split "`r?`n" | ForEach-Object { $_.Trim() } | Where-Object { $_ -match '^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$' } | Select-Object -Last 1)
+    if ([string]::IsNullOrWhiteSpace($token)) {
+        Stop-WithError "Failed to parse ARM bearer token for Kudu deployment. Raw output: $rawToken"
+    }
+
+    $kuduBase = if ($effectiveCloud -eq "AzureUSGovernment") {
+        "https://$resolvedFunctionAppName.scm.azurewebsites.us"
+    }
+    else {
+        "https://$resolvedFunctionAppName.scm.azurewebsites.net"
+    }
+
+    Write-Host "Deploying function package to Kudu..."
+    $headers = @{ Authorization = "Bearer $token" }
+    $deployResponse = Invoke-WebRequest -Uri "$kuduBase/api/zipdeploy?isAsync=true" -Method Post -Headers $headers -InFile $packagePath -ContentType "application/zip"
+
+    $pollUrl = $deployResponse.Headers["Location"]
+    if ($pollUrl -is [System.Array]) {
+        $pollUrl = $pollUrl | Select-Object -First 1
+    }
+    $pollUrl = [string]$pollUrl
+    if ([string]::IsNullOrWhiteSpace($pollUrl)) {
+        $pollUrl = "$kuduBase/api/deployments/latest"
+    }
+
+    Write-Host "Polling Kudu deployment status..."
+    $kuduStatus = $null
+    for ($attempt = 1; $attempt -le 90; $attempt++) {
+        Start-Sleep -Seconds 5
+        $kuduStatus = Invoke-RestMethod -Uri $pollUrl -Method Get -Headers $headers
+        $statusCode = [int]$kuduStatus.status
+
+        if ($statusCode -eq 4) {
+            break
+        }
+
+        if ($statusCode -eq 3) {
+            $deployId = $kuduStatus.id
+            $logDetails = ""
+            if (-not [string]::IsNullOrWhiteSpace($deployId)) {
+                $logEntries = Invoke-RestMethod -Uri "$kuduBase/api/deployments/$deployId/log" -Method Get -Headers $headers
+                $logDetails = ($logEntries | ConvertTo-Json -Depth 12)
+            }
+
+            Stop-WithError "Kudu deployment failed. Details: $($kuduStatus | ConvertTo-Json -Depth 8) Log: $logDetails"
+        }
+    }
+
+    if ($null -eq $kuduStatus -or [int]$kuduStatus.status -ne 4) {
+        Stop-WithError "Kudu deployment did not complete successfully within timeout window."
+    }
+
+    Write-Host "Restarting Function App after deployment..."
     Invoke-AzCli -Args @(
-        "functionapp", "config", "appsettings", "set",
+        "functionapp", "restart",
         "--name", $resolvedFunctionAppName,
         "--resource-group", $ResourceGroupName,
-        "--settings", "WEBSITE_RUN_FROM_PACKAGE=0", "SCM_DO_BUILD_DURING_DEPLOYMENT=false",
         "-o", "none"
     ) | Out-Null
 
-    Write-Host "Deploying package '$packagePath' to '$resolvedFunctionAppName' via zip deployment..."
-    $deploymentCompleted = $false
-    $lastDeployError = ""
-    try {
-        Invoke-AzCli -Args @(
-            "functionapp", "deployment", "source", "config-zip",
-            "--name", $resolvedFunctionAppName,
-            "--resource-group", $ResourceGroupName,
-            "--src", $packagePath,
-            "-o", "none"
-        ) | Out-Null
-        $deploymentCompleted = $true
-    }
-    catch {
-        $deployError = $_.Exception.Message
-        $lastDeployError = $deployError
-        if ($deployError -match "KeyBasedAuthenticationNotPermitted") {
-            Stop-WithError "Zip deployment still attempted key-based authentication. Confirm WEBSITE_RUN_FROM_PACKAGE is 0 and the storage account policy allows Function host identity-based access. Full error: $deployError"
-        }
-
-        if ($deployError -match "does not support this deployment path") {
-            try {
-                if ([string]::IsNullOrWhiteSpace($storageAccountId)) {
-                    Stop-WithError "This environment requires deploy-from-URL, but storage account ID was not returned by deployment outputs. Full error: $deployError"
-                }
-
-                $storageAccountName = ($storageAccountId -split "/")[-1]
-                $blobBaseUrl = (Invoke-AzCli -Args @(
-                    "storage", "account", "show",
-                    "--ids", $storageAccountId,
-                    "--query", "primaryEndpoints.blob",
-                    "-o", "tsv"
-                )).Trim()
-
-                if ([string]::IsNullOrWhiteSpace($blobBaseUrl)) {
-                    Stop-WithError "Unable to resolve Blob endpoint for storage account '$storageAccountName'."
-                }
-
-                $containerName = "function-releases"
-                $blobName = "packages/{0}-{1}.zip" -f (Get-Date -Format "yyyyMMddHHmmss"), [guid]::NewGuid().ToString("N")
-
-                Write-Host "Zip deployment path is unsupported. Uploading package to Blob via AAD for run-from-package URL deployment..."
-                Invoke-AzCli -Args @(
-                    "storage", "container", "create",
-                    "--account-name", $storageAccountName,
-                    "--name", $containerName,
-                    "--auth-mode", "login",
-                    "--public-access", "off",
-                    "-o", "none"
-                ) | Out-Null
-
-                Invoke-AzCli -Args @(
-                    "storage", "blob", "upload",
-                    "--account-name", $storageAccountName,
-                    "--container-name", $containerName,
-                    "--name", $blobName,
-                    "--file", $packagePath,
-                    "--overwrite", "true",
-                    "--auth-mode", "login",
-                    "-o", "none"
-                ) | Out-Null
-
-                $sasExpiry = (Get-Date).ToUniversalTime().AddHours(12).ToString("yyyy-MM-ddTHH:mmZ")
-                $sasToken = (Invoke-AzCli -Args @(
-                    "storage", "blob", "generate-sas",
-                    "--account-name", $storageAccountName,
-                    "--container-name", $containerName,
-                    "--name", $blobName,
-                    "--permissions", "r",
-                    "--expiry", $sasExpiry,
-                    "--https-only",
-                    "--as-user",
-                    "--auth-mode", "login",
-                    "-o", "tsv"
-                )).Trim()
-
-                if ([string]::IsNullOrWhiteSpace($sasToken)) {
-                    Stop-WithError "Failed to generate user delegation SAS for package blob '$blobName'."
-                }
-
-                $blobBase = $blobBaseUrl.TrimEnd('/')
-                $packageUrl = "$blobBase/$containerName/$blobName`?$sasToken"
-
-                Write-Host "Configuring Function App to run from uploaded package URL..."
-                Invoke-AzCli -Args @(
-                    "functionapp", "config", "appsettings", "set",
-                    "--name", $resolvedFunctionAppName,
-                    "--resource-group", $ResourceGroupName,
-                    "--settings", "WEBSITE_RUN_FROM_PACKAGE=$packageUrl", "SCM_DO_BUILD_DURING_DEPLOYMENT=false",
-                    "-o", "none"
-                ) | Out-Null
-
-                Write-Host "Deploy-from-URL fallback completed."
-                $deploymentCompleted = $true
-            }
-            catch {
-                $urlDeployError = $_.Exception.Message
-                $lastDeployError = $urlDeployError
-                if ($urlDeployError -match "required permissions needed to perform this operation") {
-                    Write-Warning "Deploy-from-URL fallback requires storage data-plane permissions for the signed-in deploy identity. Falling back to direct Kudu zipdeploy using publishing credentials..."
-
-                    $publishingCreds = Invoke-AzCli -Args @(
-                        "functionapp", "deployment", "list-publishing-credentials",
-                        "--name", $resolvedFunctionAppName,
-                        "--resource-group", $ResourceGroupName,
-                        "-o", "json"
-                    ) | ConvertFrom-Json
-
-                    if (-not $publishingCreds -or [string]::IsNullOrWhiteSpace($publishingCreds.scmUri)) {
-                        Stop-WithError "Unable to obtain publishing credentials for Kudu deployment. Last error: $urlDeployError"
-                    }
-
-                    $scmUri = $publishingCreds.scmUri.TrimEnd('/')
-
-                    Write-Host "Invoking Kudu zipdeploy at '$scmUri/api/zipdeploy'..."
-                    $deployResponse = Invoke-RestMethod -Method Post -Uri "$scmUri/api/zipdeploy" -InFile $packagePath -ContentType "application/zip" -SkipCertificateCheck
-
-                    if ($deployResponse -and $deployResponse.status -and [int]$deployResponse.status -eq 4) {
-                        Stop-WithError "Kudu zipdeploy reported failure immediately."
-                    }
-
-                    Write-Host "Kudu zipdeploy completed successfully."
-                    $deploymentCompleted = $true
-                }
-
-                throw
-            }
-        }
-
-        throw
+    Write-Host "Verifying deployed function discovery..."
+    $functionListRaw = Invoke-AzCli -Args @(
+        "functionapp", "function", "list",
+        "--name", $resolvedFunctionAppName,
+        "--resource-group", $ResourceGroupName,
+        "-o", "json"
+    )
+    $functionList = $functionListRaw | ConvertFrom-Json
+    if (-not $functionList -or $functionList.Count -eq 0) {
+        Stop-WithError "Deployment completed but zero functions were discovered in the Function App."
     }
 
-    if (-not $deploymentCompleted) {
-        Stop-WithError "Function code deployment did not complete successfully. Last error: $lastDeployError"
-    }
-
-    try {
-        Write-Host "Syncing function triggers..."
-        Invoke-AzCli -Args @(
-            "functionapp", "sync-functions",
-            "--name", $resolvedFunctionAppName,
-            "--resource-group", $ResourceGroupName,
-            "-o", "none"
-        ) | Out-Null
-    }
-    catch {
-        Write-Warning "Function trigger sync failed; the app may still discover triggers automatically after startup."
-    }
+    Write-Host "Discovered functions:" 
+    $functionList | ForEach-Object { Write-Host " - $($_.name)" }
 }
 finally {
-    Pop-Location
-    $env:FUNCTIONS_WORKER_RUNTIME = $originalFunctionsWorkerRuntime
-    if (Test-Path $packOutputPath) {
-        if (Test-Path $packOutputPath -PathType Container) {
-            Remove-Item $packOutputPath -Recurse -Force -ErrorAction SilentlyContinue
-        }
-        else {
-            Remove-Item $packOutputPath -Force -ErrorAction SilentlyContinue
-        }
+    if (Test-Path $tmpRoot) {
+        Remove-Item $tmpRoot -Recurse -Force -ErrorAction SilentlyContinue
     }
 }
 
