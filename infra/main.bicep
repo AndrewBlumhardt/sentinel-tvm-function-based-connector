@@ -237,8 +237,24 @@ resource functionApp 'Microsoft.Web/sites@2023-12-01' = {
           value: appInsights.properties.ConnectionString
         }
         {
-          name: 'AzureWebJobsStorage'
-          value: 'DefaultEndpointsProtocol=https;AccountName=${storage.name};EndpointSuffix=${environment().suffixes.storage};AccountKey=${storage.listKeys().keys[0].value}'
+          name: 'AzureWebJobsStorage__accountName'
+          value: storage.name
+        }
+        {
+          name: 'AzureWebJobsStorage__credential'
+          value: 'managedidentity'
+        }
+        {
+          name: 'AzureWebJobsStorage__blobServiceUri'
+          value: 'https://${storage.name}.blob.${environment().suffixes.storage}'
+        }
+        {
+          name: 'AzureWebJobsStorage__queueServiceUri'
+          value: 'https://${storage.name}.queue.${environment().suffixes.storage}'
+        }
+        {
+          name: 'AzureWebJobsStorage__tableServiceUri'
+          value: 'https://${storage.name}.table.${environment().suffixes.storage}'
         }
       ])
     }
@@ -247,6 +263,7 @@ resource functionApp 'Microsoft.Web/sites@2023-12-01' = {
 
 output functionAppName string = functionApp.name
 output functionPrincipalId string = functionApp.identity.principalId
+output storageAccountId string = storage.id
 output dataCollectionEndpointResourceId string = dataCollectionEndpoint.id
 output dataCollectionRuleImmutableId string = length(datasets) > 0 ? dataCollectionRules[0].properties.immutableId : ''
 output dataCollectionRuleImmutableIds array = [for i in range(0, length(datasets) == 0 ? 0 : dcrChunkCount): dataCollectionRules[i].properties.immutableId]

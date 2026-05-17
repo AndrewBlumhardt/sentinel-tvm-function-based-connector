@@ -465,6 +465,11 @@ elseif ($deploymentResult.properties.outputs.dataCollectionRuleImmutableId.value
     $ruleIds = @($deploymentResult.properties.outputs.dataCollectionRuleImmutableId.value)
 }
 
+$storageAccountId = ""
+if ($deploymentResult.properties.outputs.storageAccountId.value) {
+    $storageAccountId = $deploymentResult.properties.outputs.storageAccountId.value
+}
+
 if ($ruleIds.Count -eq 0) {
     Stop-WithError "Deployment did not return Data Collection Rule immutable IDs."
 }
@@ -529,40 +534,231 @@ else {
     }
 }
 
+Start-Stage -Name "Post-deploy Storage RBAC"
+
+if ([string]::IsNullOrWhiteSpace($functionPrincipalId)) {
+    Write-Warning "Function principal ID was not returned by deployment outputs. Skipping automatic storage RBAC assignment."
+}
+else {
+    if ([string]::IsNullOrWhiteSpace($storageAccountId)) {
+        Write-Warning "Storage account ID was not returned by deployment outputs. Skipping automatic storage RBAC assignment."
+    }
+    else {
+        $storageRoles = @(
+            "Storage Blob Data Owner",
+            "Storage Queue Data Contributor",
+            "Storage Table Data Contributor"
+        )
+        foreach ($roleName in $storageRoles) {
+            $created = Ensure-RoleAssignment -PrincipalId $functionPrincipalId -RoleName $roleName -Scope $storageAccountId
+            if ($created) {
+                Write-Host "Assigned '$roleName' to Function MI on storage account."
+            }
+            else {
+                Write-Host "'$roleName' already assigned on storage account or awaiting RBAC propagation."
+            }
+        }
+    }
+}
+
 Start-Stage -Name "Function code deployment"
 
 $functionProjectRoot = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
 Write-Host "Packaging function code from '$functionProjectRoot' for '$resolvedFunctionAppName'..."
 $packagePath = Join-Path ([System.IO.Path]::GetTempPath()) ("{0}-{1}.zip" -f $resolvedFunctionAppName, [guid]::NewGuid().ToString('N'))
+$packOutputPath = $packagePath
 $originalFunctionsWorkerRuntime = $env:FUNCTIONS_WORKER_RUNTIME
 Push-Location $functionProjectRoot
 try {
     # Force runtime for pack to prevent inheriting invalid values like "None" from the shell.
     $env:FUNCTIONS_WORKER_RUNTIME = "python"
 
-    & $script:FuncCommand pack . --output $packagePath
+    & $script:FuncCommand pack . --output $packOutputPath
     if ($LASTEXITCODE -ne 0) {
         Stop-WithError "Function package creation failed. See output above for details."
     }
 
-    if (-not (Test-Path $packagePath)) {
-        Stop-WithError "Function package was not created at $packagePath."
+    if (-not (Test-Path $packOutputPath)) {
+        Stop-WithError "Function package was not created at $packOutputPath."
     }
 
-    Write-Host "Deploying package '$packagePath' to '$resolvedFunctionAppName' via zip deployment..."
+    if (Test-Path $packOutputPath -PathType Container) {
+        $nestedZip = Get-ChildItem -Path $packOutputPath -Filter "*.zip" -File | Select-Object -First 1
+        if (-not $nestedZip) {
+            Stop-WithError "Function package output '$packOutputPath' is a directory but no zip file was found inside it."
+        }
+
+        $packagePath = $nestedZip.FullName
+    }
+
+    Write-Host "Setting WEBSITE_RUN_FROM_PACKAGE=0 before zip deployment to avoid storage key based package mounting..."
     Invoke-AzCli -Args @(
-        "functionapp", "deployment", "source", "config-zip",
+        "functionapp", "config", "appsettings", "set",
         "--name", $resolvedFunctionAppName,
         "--resource-group", $ResourceGroupName,
-        "--src", $packagePath,
+        "--settings", "WEBSITE_RUN_FROM_PACKAGE=0", "SCM_DO_BUILD_DURING_DEPLOYMENT=false",
         "-o", "none"
     ) | Out-Null
+
+    Write-Host "Deploying package '$packagePath' to '$resolvedFunctionAppName' via zip deployment..."
+    $deploymentCompleted = $false
+    $lastDeployError = ""
+    try {
+        Invoke-AzCli -Args @(
+            "functionapp", "deployment", "source", "config-zip",
+            "--name", $resolvedFunctionAppName,
+            "--resource-group", $ResourceGroupName,
+            "--src", $packagePath,
+            "-o", "none"
+        ) | Out-Null
+        $deploymentCompleted = $true
+    }
+    catch {
+        $deployError = $_.Exception.Message
+        $lastDeployError = $deployError
+        if ($deployError -match "KeyBasedAuthenticationNotPermitted") {
+            Stop-WithError "Zip deployment still attempted key-based authentication. Confirm WEBSITE_RUN_FROM_PACKAGE is 0 and the storage account policy allows Function host identity-based access. Full error: $deployError"
+        }
+
+        if ($deployError -match "does not support this deployment path") {
+            try {
+                if ([string]::IsNullOrWhiteSpace($storageAccountId)) {
+                    Stop-WithError "This environment requires deploy-from-URL, but storage account ID was not returned by deployment outputs. Full error: $deployError"
+                }
+
+                $storageAccountName = ($storageAccountId -split "/")[-1]
+                $blobBaseUrl = (Invoke-AzCli -Args @(
+                    "storage", "account", "show",
+                    "--ids", $storageAccountId,
+                    "--query", "primaryEndpoints.blob",
+                    "-o", "tsv"
+                )).Trim()
+
+                if ([string]::IsNullOrWhiteSpace($blobBaseUrl)) {
+                    Stop-WithError "Unable to resolve Blob endpoint for storage account '$storageAccountName'."
+                }
+
+                $containerName = "function-releases"
+                $blobName = "packages/{0}-{1}.zip" -f (Get-Date -Format "yyyyMMddHHmmss"), [guid]::NewGuid().ToString("N")
+
+                Write-Host "Zip deployment path is unsupported. Uploading package to Blob via AAD for run-from-package URL deployment..."
+                Invoke-AzCli -Args @(
+                    "storage", "container", "create",
+                    "--account-name", $storageAccountName,
+                    "--name", $containerName,
+                    "--auth-mode", "login",
+                    "--public-access", "off",
+                    "-o", "none"
+                ) | Out-Null
+
+                Invoke-AzCli -Args @(
+                    "storage", "blob", "upload",
+                    "--account-name", $storageAccountName,
+                    "--container-name", $containerName,
+                    "--name", $blobName,
+                    "--file", $packagePath,
+                    "--overwrite", "true",
+                    "--auth-mode", "login",
+                    "-o", "none"
+                ) | Out-Null
+
+                $sasExpiry = (Get-Date).ToUniversalTime().AddHours(12).ToString("yyyy-MM-ddTHH:mmZ")
+                $sasToken = (Invoke-AzCli -Args @(
+                    "storage", "blob", "generate-sas",
+                    "--account-name", $storageAccountName,
+                    "--container-name", $containerName,
+                    "--name", $blobName,
+                    "--permissions", "r",
+                    "--expiry", $sasExpiry,
+                    "--https-only",
+                    "--as-user",
+                    "--auth-mode", "login",
+                    "-o", "tsv"
+                )).Trim()
+
+                if ([string]::IsNullOrWhiteSpace($sasToken)) {
+                    Stop-WithError "Failed to generate user delegation SAS for package blob '$blobName'."
+                }
+
+                $blobBase = $blobBaseUrl.TrimEnd('/')
+                $packageUrl = "$blobBase/$containerName/$blobName`?$sasToken"
+
+                Write-Host "Configuring Function App to run from uploaded package URL..."
+                Invoke-AzCli -Args @(
+                    "functionapp", "config", "appsettings", "set",
+                    "--name", $resolvedFunctionAppName,
+                    "--resource-group", $ResourceGroupName,
+                    "--settings", "WEBSITE_RUN_FROM_PACKAGE=$packageUrl", "SCM_DO_BUILD_DURING_DEPLOYMENT=false",
+                    "-o", "none"
+                ) | Out-Null
+
+                Write-Host "Deploy-from-URL fallback completed."
+                $deploymentCompleted = $true
+            }
+            catch {
+                $urlDeployError = $_.Exception.Message
+                $lastDeployError = $urlDeployError
+                if ($urlDeployError -match "required permissions needed to perform this operation") {
+                    Write-Warning "Deploy-from-URL fallback requires storage data-plane permissions for the signed-in deploy identity. Falling back to direct Kudu zipdeploy using publishing credentials..."
+
+                    $publishingCreds = Invoke-AzCli -Args @(
+                        "functionapp", "deployment", "list-publishing-credentials",
+                        "--name", $resolvedFunctionAppName,
+                        "--resource-group", $ResourceGroupName,
+                        "-o", "json"
+                    ) | ConvertFrom-Json
+
+                    if (-not $publishingCreds -or [string]::IsNullOrWhiteSpace($publishingCreds.scmUri)) {
+                        Stop-WithError "Unable to obtain publishing credentials for Kudu deployment. Last error: $urlDeployError"
+                    }
+
+                    $scmUri = $publishingCreds.scmUri.TrimEnd('/')
+
+                    Write-Host "Invoking Kudu zipdeploy at '$scmUri/api/zipdeploy'..."
+                    $deployResponse = Invoke-RestMethod -Method Post -Uri "$scmUri/api/zipdeploy" -InFile $packagePath -ContentType "application/zip" -SkipCertificateCheck
+
+                    if ($deployResponse -and $deployResponse.status -and [int]$deployResponse.status -eq 4) {
+                        Stop-WithError "Kudu zipdeploy reported failure immediately."
+                    }
+
+                    Write-Host "Kudu zipdeploy completed successfully."
+                    $deploymentCompleted = $true
+                }
+
+                throw
+            }
+        }
+
+        throw
+    }
+
+    if (-not $deploymentCompleted) {
+        Stop-WithError "Function code deployment did not complete successfully. Last error: $lastDeployError"
+    }
+
+    try {
+        Write-Host "Syncing function triggers..."
+        Invoke-AzCli -Args @(
+            "functionapp", "sync-functions",
+            "--name", $resolvedFunctionAppName,
+            "--resource-group", $ResourceGroupName,
+            "-o", "none"
+        ) | Out-Null
+    }
+    catch {
+        Write-Warning "Function trigger sync failed; the app may still discover triggers automatically after startup."
+    }
 }
 finally {
     Pop-Location
     $env:FUNCTIONS_WORKER_RUNTIME = $originalFunctionsWorkerRuntime
-    if (Test-Path $packagePath) {
-        Remove-Item $packagePath -Force -ErrorAction SilentlyContinue
+    if (Test-Path $packOutputPath) {
+        if (Test-Path $packOutputPath -PathType Container) {
+            Remove-Item $packOutputPath -Recurse -Force -ErrorAction SilentlyContinue
+        }
+        else {
+            Remove-Item $packOutputPath -Force -ErrorAction SilentlyContinue
+        }
     }
 }
 
@@ -571,17 +767,8 @@ if ($KeepFunctionRunning) {
     Write-Host "Keeping Function App '$resolvedFunctionAppName' running because -KeepFunctionRunning was provided."
 }
 else {
-    Write-Host "Stopping Function App '$resolvedFunctionAppName' so credentials and permissions can be finalized before test runs..."
-    Invoke-AzCli -Args @(
-        "functionapp", "stop",
-        "--name", $resolvedFunctionAppName,
-        "--resource-group", $ResourceGroupName,
-        "-o", "none"
-    ) | Out-Null
-
-    Write-Host "Function App '$resolvedFunctionAppName' is stopped."
-    Write-Host "When ready to test, start it with: az functionapp start --name $resolvedFunctionAppName --resource-group $ResourceGroupName"
-    Write-Host "To force a clean restart later: az functionapp restart --name $resolvedFunctionAppName --resource-group $ResourceGroupName"
+    Write-Host "Leaving Function App '$resolvedFunctionAppName' running by default."
+    Write-Host "If needed, you can restart it with: az functionapp restart --name $resolvedFunctionAppName --resource-group $ResourceGroupName"
 }
 
 Start-Stage -Name "Completed"
