@@ -450,10 +450,6 @@ if ($deploymentResult.properties.outputs.functionPrincipalId.value) {
     $functionPrincipalId = $deploymentResult.properties.outputs.functionPrincipalId.value
 }
 
-$ruleIds = @()
-if ($deploymentResult.properties.outputs.dataCollectionRuleImmutableIds.value) {
-    $ruleIds = @($deploymentResult.properties.outputs.dataCollectionRuleImmutableIds.value)
-}
 elseif ($deploymentResult.properties.outputs.dataCollectionRuleImmutableId.value) {
     $ruleIds = @($deploymentResult.properties.outputs.dataCollectionRuleImmutableId.value)
 }
@@ -466,33 +462,6 @@ if ($deploymentResult.properties.outputs.storageAccountId.value) {
 if ($ruleIds.Count -eq 0) {
     Stop-WithError "Deployment did not return Data Collection Rule immutable IDs."
 }
-
-Start-Stage -Name "Post-deploy app settings"
-
-$datasets = (Get-Content -Path $datasetConfigPath -Raw | ConvertFrom-Json).datasets
-$maxDataFlowsPerRule = 10
-
-$datasetRuleSettings = @()
-for ($i = 0; $i -lt $datasets.Count; $i++) {
-    $dataset = $datasets[$i]
-    $ruleIndex = [int][Math]::Floor($i / $maxDataFlowsPerRule)
-    if ($ruleIndex -ge $ruleIds.Count) {
-        Stop-WithError "Calculated DCR index $ruleIndex for dataset '$($dataset.name)' exceeds available DCR count $($ruleIds.Count)."
-    }
-
-    $datasetRuleSettings += "DcrRuleId_$($dataset.name)=$($ruleIds[$ruleIndex])"
-}
-
-Write-Host "Applying per-dataset DCR rule ID app settings to Function App '$resolvedFunctionAppName'..."
-$appSettingsArgs = @(
-    "functionapp", "config", "appsettings", "set",
-    "--name", $resolvedFunctionAppName,
-    "--resource-group", $ResourceGroupName,
-    "--only-show-errors",
-    "-o", "none",
-    "--settings"
-) + $datasetRuleSettings
-Invoke-AzCli -Args $appSettingsArgs | Out-Null
 
 Start-Stage -Name "Post-deploy DCR RBAC"
 
