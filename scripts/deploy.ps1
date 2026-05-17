@@ -16,8 +16,7 @@ param(
     [string]$SubscriptionId = "",
     [string]$TenantId = "",
 
-    [switch]$SkipLogin,
-    [switch]$KeepFunctionRunning
+    [switch]$SkipLogin
 )
 
 $ErrorActionPreference = "Stop"
@@ -781,13 +780,8 @@ finally {
 }
 
 Start-Stage -Name "Function app state"
-if ($KeepFunctionRunning) {
-    Write-Host "Keeping Function App '$resolvedFunctionAppName' running because -KeepFunctionRunning was provided."
-}
-else {
-    Write-Host "Leaving Function App '$resolvedFunctionAppName' running by default."
-    Write-Host "If needed, you can restart it with: az functionapp restart --name $resolvedFunctionAppName --resource-group $ResourceGroupName"
-}
+Write-Host "Function App '$resolvedFunctionAppName' is left running after deployment."
+Write-Host "If needed, you can restart it with: az functionapp restart --name $resolvedFunctionAppName --resource-group $ResourceGroupName"
 
 Start-Stage -Name "Completed"
 Write-Host "Deployment completed successfully."
