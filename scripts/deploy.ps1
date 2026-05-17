@@ -603,18 +603,46 @@ try {
         Copy-Item -Path $sourcePath -Destination $buildRoot -Recurse -Force
     }
 
-    $pythonPackagesTarget = Join-Path $buildRoot ".python_packages\lib\site-packages"
+    $pythonPackagesTarget = Join-Path $buildRoot ".python_packages/lib/site-packages"
     New-Item -Path $pythonPackagesTarget -ItemType Directory -Force | Out-Null
 
-    Write-Host "Vendoring Python dependencies into package..."
+    Write-Host "Vendoring Python dependencies into package (Python 3.11, Linux x86_64 wheels)..."
     $venvPath = Join-Path $tmpRoot "packaging-venv"
     $venvPython = Join-Path $venvPath "Scripts\python.exe"
 
+    # Locate Python 3.11 explicitly. Function App runtime is Python 3.11 -- using any other
+    # interpreter risks shipping ABI-incompatible wheels (cp312/cp313) that silently fail to
+    # import at runtime, leading to zero discovered functions.
+    $pyLauncher = Get-Command py -ErrorAction SilentlyContinue
+    $py311Cmd = $null
+    $py311Args = $null
+    if ($pyLauncher) {
+        $probe = & py -3.11 -c "import sys; print(f'{sys.version_info.major}.{sys.version_info.minor}')" 2>$null
+        if ($LASTEXITCODE -eq 0 -and $probe -and $probe.Trim() -eq "3.11") {
+            $py311Cmd = "py"
+            $py311Args = @("-3.11")
+        }
+    }
+    if (-not $py311Cmd) {
+        $pythonCmd = Get-Command python -ErrorAction SilentlyContinue
+        if ($pythonCmd) {
+            $probe = & python -c "import sys; print(f'{sys.version_info.major}.{sys.version_info.minor}')" 2>$null
+            if ($LASTEXITCODE -eq 0 -and $probe -and $probe.Trim() -eq "3.11") {
+                $py311Cmd = "python"
+                $py311Args = @()
+            }
+        }
+    }
+    if (-not $py311Cmd) {
+        Stop-WithError "Python 3.11 not found. Install Python 3.11 (https://www.python.org/downloads/release/python-31110/) and ensure 'py -3.11' or 'python' resolves to it. The Function App runtime is Python 3.11; using 3.12/3.13 would ship ABI-incompatible wheels and cause zero functions to be discovered at runtime."
+    }
+    Write-Host "Using Python 3.11 interpreter: $py311Cmd $($py311Args -join ' ')"
+
     Push-Location $functionProjectRoot
     try {
-        & python -m venv $venvPath
+        & $py311Cmd @py311Args -m venv $venvPath
         if ($LASTEXITCODE -ne 0 -or -not (Test-Path $venvPython)) {
-            Stop-WithError "Failed to create temporary Python virtual environment for packaging at '$venvPath'."
+            Stop-WithError "Failed to create temporary Python 3.11 virtual environment for packaging at '$venvPath'."
         }
 
         # Use an isolated venv pip to avoid dependency conflict warnings from globally installed packages.
@@ -623,9 +651,21 @@ try {
             Stop-WithError "Failed to initialize pip inside temporary packaging environment."
         }
 
-        & $venvPython -m pip install -r requirements.txt --target $pythonPackagesTarget --disable-pip-version-check --quiet
+        # Force Linux x86_64 + cp311 wheels (the Function App runs Linux Python 3.11). Without
+        # these flags pip resolves Windows wheels locally, which are useless on the deployed app.
+        & $venvPython -m pip install `
+            --target $pythonPackagesTarget `
+            --platform manylinux2014_x86_64 `
+            --python-version 3.11 `
+            --implementation cp `
+            --abi cp311 `
+            --only-binary=:all: `
+            --upgrade `
+            --disable-pip-version-check `
+            --quiet `
+            -r requirements.txt
         if ($LASTEXITCODE -ne 0) {
-            Stop-WithError "Python dependency packaging failed. Ensure python and pip are available and compatible with runtime 3.11."
+            Stop-WithError "Python dependency packaging failed. All requirements must have Linux x86_64 / cp311 wheels available on PyPI. If a package only ships sdists, build it on a Linux runner or use a pre-built wheel."
         }
     }
     finally {
@@ -636,207 +676,43 @@ try {
         Remove-Item $packagePath -Force
     }
 
-    Compress-Archive -Path (Join-Path $buildRoot "*") -DestinationPath $packagePath -Force
+    # IMPORTANT: PowerShell 5.1's Compress-Archive writes ZIP entries with backslash separators,
+    # which Linux Function Apps cannot interpret as directory boundaries. Files end up as
+    # "Functions\common.py" (flat filename) instead of "Functions/common.py" (real directory).
+    # The runtime then discovers zero modules. Use .NET ZipFile which writes POSIX-style paths.
+    Write-Host "Compressing package (POSIX-style entry names) to '$packagePath'..."
+    Add-Type -AssemblyName System.IO.Compression.FileSystem
+    [System.IO.Compression.ZipFile]::CreateFromDirectory(
+        $buildRoot,
+        $packagePath,
+        [System.IO.Compression.CompressionLevel]::Optimal,
+        $false
+    )
 
-
-    Write-Host "Clearing run-from-package app settings before zip deploy..."
-    Invoke-AzCli -Args @(
-        "functionapp", "config", "appsettings", "delete",
-        "--name", $resolvedFunctionAppName,
-        "--resource-group", $ResourceGroupName,
-        "--setting-names", "WEBSITE_RUN_FROM_PACKAGE", "SCM_RUN_FROM_PACKAGE",
-        "--only-show-errors",
-        "-o", "none"
-    ) | Out-Null
-
-    Write-Host "Deploying function package via Azure CLI..."
+    # Sanity-check the zip before uploading. Catch the common silent failures (no Functions/
+    # directory, no .python_packages/, backslash entries) before they cause runtime breakage.
+    $zipArchive = [System.IO.Compression.ZipFile]::OpenRead($packagePath)
     try {
-        Invoke-AzCli -Args @(
-            "functionapp", "deployment", "source", "config-zip",
-            "--name", $resolvedFunctionAppName,
-            "--resource-group", $ResourceGroupName,
-            "--src", $packagePath,
-            "--only-show-errors"
-        ) | Out-Null
+        $entryNames = @($zipArchive.Entries | ForEach-Object { $_.FullName })
     }
-    catch {
-        $deployError = $_.Exception.Message
-        $unsupportedPath = ($deployError -match "does not support this deployment path" -or $deployError -match "deployfromurl")
-        if (-not $unsupportedPath) {
-            throw
-        }
-
-        if ([string]::IsNullOrWhiteSpace($storageAccountId)) {
-            Stop-WithError "Zip deploy is not supported for this Function App and storage account output is unavailable for remote package deployment."
-        }
-
-        Write-Host "Zip deploy is unsupported for this hosting path. Falling back to remote package URL deployment (AAD auth, no storage keys)..."
-
-        $storageAccountName = ($storageAccountId -split "/")[-1]
-        $storageResourceGroupName = Get-ResourceIdSegment -ResourceId $storageAccountId -SegmentName "resourceGroups"
-        if ([string]::IsNullOrWhiteSpace($storageResourceGroupName)) {
-            $storageResourceGroupName = $ResourceGroupName
-        }
-
-        $blobBaseUrl = (Invoke-AzCli -Args @(
-            "storage", "account", "show",
-            "--ids", $storageAccountId,
-            "--query", "primaryEndpoints.blob",
-            "-o", "tsv",
-            "--only-show-errors"
-        )).Trim()
-        if ([string]::IsNullOrWhiteSpace($blobBaseUrl)) {
-            Stop-WithError "Failed to resolve blob endpoint for storage account '$storageAccountName'."
-        }
-
-        $containerName = "function-releases"
-        $blobName = "packages/{0}-{1}.zip" -f (Get-Date -Format "yyyyMMddHHmmss"), [guid]::NewGuid().ToString("N")
-
-        $deployIdentityObjectId = ""
-        if ($accountInfo.user.type -eq "servicePrincipal") {
-            $deployIdentityObjectId = (Invoke-AzCli -Args @(
-                "ad", "sp", "show", "--id", $accountInfo.user.name,
-                "--query", "id", "-o", "tsv", "--only-show-errors"
-            )).Trim()
-        }
-        else {
-            $deployIdentityObjectId = (Invoke-AzCli -Args @(
-                "ad", "signed-in-user", "show",
-                "--query", "id", "-o", "tsv", "--only-show-errors"
-            )).Trim()
-        }
-
-        Write-Host "Remote package fallback context:"
-        Write-Host "  Storage account scope: $storageAccountId"
-        Write-Host "  Deploy principal type: $($accountInfo.user.type)"
-        Write-Host "  Deploy principal name: $($accountInfo.user.name)"
-        if (-not [string]::IsNullOrWhiteSpace($deployIdentityObjectId)) {
-            Write-Host "  Deploy principal object ID: $deployIdentityObjectId"
-        }
-        else {
-            Write-Warning "Unable to resolve deploy principal object ID for RBAC assignment."
-        }
-
-        $uploadSucceeded = $false
-        $containerEnsured = $false
-        $uploadAttempts = 10
-        $retryDelaySeconds = 20
-
-        if ([string]::IsNullOrWhiteSpace($deployIdentityObjectId)) {
-            throw
-        }
-
-        Write-Host "Assigning 'Storage Blob Data Owner' to deploy identity for AAD blob upload and user delegation SAS..."
-        $rbacCreated = Ensure-RoleAssignment -PrincipalId $deployIdentityObjectId -RoleName "Storage Blob Data Owner" -Scope $storageAccountId
-        if ($rbacCreated) {
-            Write-Host "Role assignment created. Waiting for RBAC propagation before retrying storage upload..."
-        }
-        else {
-            Write-Host "Role assignment already exists or is awaiting propagation. Continuing with upload retries..."
-        }
-
-        for ($uploadAttempt = 1; $uploadAttempt -le $uploadAttempts; $uploadAttempt++) {
-            try {
-                if (-not $containerEnsured) {
-                    try {
-                        Invoke-AzCli -Args @(
-                            "storage", "container", "create",
-                            "--account-name", $storageAccountName,
-                            "--name", $containerName,
-                            "--auth-mode", "login",
-                            "--public-access", "off",
-                            "--only-show-errors",
-                            "-o", "none"
-                        ) | Out-Null
-                    }
-                    catch {
-                        $containerError = $_.Exception.Message
-                        if ($containerError -notmatch "already exists") {
-                            throw
-                        }
-                    }
-
-                    $containerEnsured = $true
-                }
-
-                Invoke-AzCli -Args @(
-                    "storage", "blob", "upload",
-                    "--account-name", $storageAccountName,
-                    "--container-name", $containerName,
-                    "--name", $blobName,
-                    "--file", $packagePath,
-                    "--overwrite", "true",
-                    "--auth-mode", "login",
-                    "--only-show-errors",
-                    "-o", "none"
-                ) | Out-Null
-                $uploadSucceeded = $true
-                break
-            }
-            catch {
-                $uploadError = $_.Exception.Message
-                if ($uploadAttempt -ge $uploadAttempts) {
-                    throw
-                }
-
-                $waitSeconds = [Math]::Min(300, $retryDelaySeconds * $uploadAttempt)
-                Write-Host "Storage upload still failing after RBAC assignment. Retrying in $waitSeconds seconds ($uploadAttempt/$uploadAttempts)..."
-                Write-Host "Last error: $uploadError"
-                Start-Sleep -Seconds $waitSeconds
-            }
-        }
-
-        if (-not $uploadSucceeded) {
-            Stop-WithError "Failed to upload deployment package to storage using AAD auth."
-        }
-
-        $sasExpiry = (Get-Date).ToUniversalTime().AddHours(12).ToString("yyyy-MM-ddTHH:mmZ")
-        $sasToken = (Invoke-AzCli -Args @(
-            "storage", "blob", "generate-sas",
-            "--account-name", $storageAccountName,
-            "--container-name", $containerName,
-            "--name", $blobName,
-            "--permissions", "r",
-            "--expiry", $sasExpiry,
-            "--https-only",
-            "--as-user",
-            "--auth-mode", "login",
-            "--only-show-errors",
-            "-o", "tsv"
-        )).Trim()
-        if ([string]::IsNullOrWhiteSpace($sasToken)) {
-            Stop-WithError "Failed to generate user delegation SAS for remote package deployment."
-        }
-
-        $packageUrl = "{0}/{1}/{2}`?{3}" -f $blobBaseUrl.TrimEnd('/'), $containerName, $blobName, $sasToken
-
-        $functionAppId = (Invoke-AzCli -Args @(
-            "functionapp", "show",
-            "--name", $resolvedFunctionAppName,
-            "--resource-group", $ResourceGroupName,
-            "--query", "id",
-            "-o", "tsv",
-            "--only-show-errors"
-        )).Trim()
-        if ([string]::IsNullOrWhiteSpace($functionAppId)) {
-            Stop-WithError "Failed to resolve Function App resource ID for WEBSITE_RUN_FROM_PACKAGE update."
-        }
-
-        $appSettingsBody = @{ properties = @{ WEBSITE_RUN_FROM_PACKAGE = $packageUrl } } | ConvertTo-Json -Depth 5 -Compress
-        Write-Host "Updating WEBSITE_RUN_FROM_PACKAGE app setting with remote package URL..."
-        Write-Host "Package URL: $packageUrl"
-        Invoke-AzCli -Args @(
-            "rest",
-            "--method", "PATCH",
-            "--url", "$resourceManagerEndpoint$functionAppId/config/appsettings?api-version=2023-12-01",
-            "--headers", "Content-Type=application/json",
-            "--body", $appSettingsBody,
-            "--only-show-errors",
-            "-o", "json"
-        ) | Out-Null
+    finally {
+        $zipArchive.Dispose()
     }
-    Write-Host "Function package deployed successfully."
+    $backslashEntries = @($entryNames | Where-Object { $_ -match '\\' })
+    if ($backslashEntries.Count -gt 0) {
+        Stop-WithError ("Package contains {0} entries with backslash separators (e.g. '{1}'). Linux Function Apps require POSIX-style paths. Aborting." -f $backslashEntries.Count, $backslashEntries[0])
+    }
+    if (-not ($entryNames | Where-Object { $_ -match '^Functions/' })) {
+        Stop-WithError "Package is missing 'Functions/' directory entries. Function discovery would fail."
+    }
+    if (-not ($entryNames | Where-Object { $_ -match '^\.python_packages/' })) {
+        Stop-WithError "Package is missing '.python_packages/' directory. Function imports would fail at runtime."
+    }
+    Write-Host ("Package contains {0} entries. Verified Functions/ and .python_packages/ present with POSIX paths." -f $entryNames.Count)
 
+    # Apply FUNCTIONS_SMOKE_MODULE BEFORE the package deploy so the first cold-start after
+    # the package change sees the correct discovery mode. Updating it after deploy would force
+    # a second restart and a brief window where the wrong module set is loaded.
     if ([string]::IsNullOrWhiteSpace($SmokeModule)) {
         Write-Host "Smoke mode disabled. Removing FUNCTIONS_SMOKE_MODULE app setting if present..."
         Invoke-AzCli -Args @(
@@ -860,13 +736,183 @@ try {
         ) | Out-Null
     }
 
-    Write-Host "Restarting Function App after deployment..."
-    Invoke-AzCli -Args @(
-        "functionapp", "restart",
+    # Linux Consumption (Y1) with identity-based AzureWebJobsStorage does not support
+    # config-zip / one-deploy. Go straight to the documented WEBSITE_RUN_FROM_PACKAGE path.
+    # We do NOT pre-delete the existing WEBSITE_RUN_FROM_PACKAGE setting -- a missing setting
+    # causes the app to restart with no code and emit confusing errors mid-deploy. Overwriting
+    # the value atomically at the end is the correct pattern.
+    if ([string]::IsNullOrWhiteSpace($storageAccountId)) {
+        Stop-WithError "Storage account ID is not available from deployment outputs; cannot stage remote package."
+    }
+
+    Write-Host "Deploying via WEBSITE_RUN_FROM_PACKAGE (remote URL, AAD-uploaded, user-delegation SAS)..."
+
+    $storageAccountName = ($storageAccountId -split "/")[-1]
+
+    $blobBaseUrl = (Invoke-AzCli -Args @(
+        "storage", "account", "show",
+        "--ids", $storageAccountId,
+        "--query", "primaryEndpoints.blob",
+        "-o", "tsv",
+        "--only-show-errors"
+    )).Trim()
+    if ([string]::IsNullOrWhiteSpace($blobBaseUrl)) {
+        Stop-WithError "Failed to resolve blob endpoint for storage account '$storageAccountName'."
+    }
+
+    $containerName = "function-releases"
+    $blobName = "packages/{0}-{1}.zip" -f (Get-Date -Format "yyyyMMddHHmmss"), [guid]::NewGuid().ToString("N")
+
+    $deployIdentityObjectId = ""
+    if ($accountInfo.user.type -eq "servicePrincipal") {
+        $deployIdentityObjectId = (Invoke-AzCli -Args @(
+            "ad", "sp", "show", "--id", $accountInfo.user.name,
+            "--query", "id", "-o", "tsv", "--only-show-errors"
+        )).Trim()
+    }
+    else {
+        $deployIdentityObjectId = (Invoke-AzCli -Args @(
+            "ad", "signed-in-user", "show",
+            "--query", "id", "-o", "tsv", "--only-show-errors"
+        )).Trim()
+    }
+
+    Write-Host "Remote package staging context:"
+    Write-Host "  Storage account scope: $storageAccountId"
+    Write-Host "  Deploy principal type: $($accountInfo.user.type)"
+    Write-Host "  Deploy principal name: $($accountInfo.user.name)"
+    if ([string]::IsNullOrWhiteSpace($deployIdentityObjectId)) {
+        Stop-WithError "Unable to resolve deploy principal object ID -- required for AAD blob upload and user-delegation SAS."
+    }
+    Write-Host "  Deploy principal object ID: $deployIdentityObjectId"
+
+    Write-Host "Assigning 'Storage Blob Data Owner' to deploy identity for AAD blob upload and user delegation SAS..."
+    $rbacCreated = Ensure-RoleAssignment -PrincipalId $deployIdentityObjectId -RoleName "Storage Blob Data Owner" -Scope $storageAccountId
+    if ($rbacCreated) {
+        Write-Host "Role assignment created. Continuing with upload retries to allow RBAC propagation..."
+    }
+    else {
+        Write-Host "Role assignment already exists or is awaiting propagation. Continuing with upload retries..."
+    }
+
+    $uploadSucceeded = $false
+    $containerEnsured = $false
+    $uploadAttempts = 10
+    $retryDelaySeconds = 20
+
+    for ($uploadAttempt = 1; $uploadAttempt -le $uploadAttempts; $uploadAttempt++) {
+        try {
+            if (-not $containerEnsured) {
+                try {
+                    Invoke-AzCli -Args @(
+                        "storage", "container", "create",
+                        "--account-name", $storageAccountName,
+                        "--name", $containerName,
+                        "--auth-mode", "login",
+                        "--public-access", "off",
+                        "--only-show-errors",
+                        "-o", "none"
+                    ) | Out-Null
+                }
+                catch {
+                    $containerError = $_.Exception.Message
+                    if ($containerError -notmatch "already exists") {
+                        throw
+                    }
+                }
+
+                $containerEnsured = $true
+            }
+
+            Invoke-AzCli -Args @(
+                "storage", "blob", "upload",
+                "--account-name", $storageAccountName,
+                "--container-name", $containerName,
+                "--name", $blobName,
+                "--file", $packagePath,
+                "--overwrite", "true",
+                "--auth-mode", "login",
+                "--only-show-errors",
+                "-o", "none"
+            ) | Out-Null
+            $uploadSucceeded = $true
+            break
+        }
+        catch {
+            $uploadError = $_.Exception.Message
+            if ($uploadAttempt -ge $uploadAttempts) {
+                throw
+            }
+
+            $waitSeconds = [Math]::Min(300, $retryDelaySeconds * $uploadAttempt)
+            Write-Host "Storage upload failed (attempt $uploadAttempt/$uploadAttempts). Retrying in $waitSeconds seconds..."
+            Write-Host "Last error: $uploadError"
+            Start-Sleep -Seconds $waitSeconds
+        }
+    }
+
+    if (-not $uploadSucceeded) {
+        Stop-WithError "Failed to upload deployment package to storage using AAD auth."
+    }
+
+    # User-delegation SAS is capped at 7 days by Azure Storage. Use the max minus a small
+    # buffer so the package URL remains valid as long as possible without re-deploying.
+    # NOTE: If the function app cold-starts after 7 days, re-run this script to refresh the
+    # package URL, OR switch the Function App to identity-based run-from-package (Flex/Premium).
+    $sasExpiry = (Get-Date).ToUniversalTime().AddDays(7).AddMinutes(-5).ToString("yyyy-MM-ddTHH:mmZ")
+    $sasToken = (Invoke-AzCli -Args @(
+        "storage", "blob", "generate-sas",
+        "--account-name", $storageAccountName,
+        "--container-name", $containerName,
+        "--name", $blobName,
+        "--permissions", "r",
+        "--expiry", $sasExpiry,
+        "--https-only",
+        "--as-user",
+        "--auth-mode", "login",
+        "--only-show-errors",
+        "-o", "tsv"
+    )).Trim()
+    if ([string]::IsNullOrWhiteSpace($sasToken)) {
+        Stop-WithError "Failed to generate user delegation SAS for remote package deployment."
+    }
+
+    # Some az CLI versions return the SAS with a leading '?'; normalize to bare token.
+    $sasToken = $sasToken.TrimStart('?')
+
+    $packageUrl = "{0}/{1}/{2}?{3}" -f $blobBaseUrl.TrimEnd('/'), $containerName, $blobName, $sasToken
+
+    $functionAppId = (Invoke-AzCli -Args @(
+        "functionapp", "show",
         "--name", $resolvedFunctionAppName,
         "--resource-group", $ResourceGroupName,
-        "-o", "none"
+        "--query", "id",
+        "-o", "tsv",
+        "--only-show-errors"
+    )).Trim()
+    if ([string]::IsNullOrWhiteSpace($functionAppId)) {
+        Stop-WithError "Failed to resolve Function App resource ID for WEBSITE_RUN_FROM_PACKAGE update."
+    }
+
+    $appSettingsBody = @{ properties = @{ WEBSITE_RUN_FROM_PACKAGE = $packageUrl } } | ConvertTo-Json -Depth 5 -Compress
+    Write-Host "Updating WEBSITE_RUN_FROM_PACKAGE app setting with remote package URL..."
+    Write-Host "Package URL (SAS redacted): $($blobBaseUrl.TrimEnd('/'))/$containerName/$blobName?<sas-token-redacted>"
+    Invoke-AzCli -Args @(
+        "rest",
+        "--method", "PATCH",
+        "--url", "$resourceManagerEndpoint$functionAppId/config/appsettings?api-version=2023-12-01",
+        "--headers", "Content-Type=application/json",
+        "--body", $appSettingsBody,
+        "--only-show-errors",
+        "-o", "json"
     ) | Out-Null
+    Write-Host "Function package deployed successfully. App will restart automatically."
+
+    # NOTE: changing WEBSITE_RUN_FROM_PACKAGE already triggers a Function App restart; an
+    # explicit restart here is redundant and only adds startup latency.
+
+    Write-Host "Waiting 30 seconds for the runtime to mount the new package before listing functions..."
+    Start-Sleep -Seconds 30
 
     Write-Host "Verifying deployed function discovery..."
     $functionListRaw = Invoke-AzCli -Args @(
