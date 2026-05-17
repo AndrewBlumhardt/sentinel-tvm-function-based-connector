@@ -916,19 +916,83 @@ try {
     # NOTE: changing WEBSITE_RUN_FROM_PACKAGE already triggers a Function App restart; an
     # explicit restart here is redundant and only adds startup latency.
 
-    Write-Host "Waiting 30 seconds for the runtime to mount the new package before listing functions..."
-    Start-Sleep -Seconds 30
+    # The runtime needs time to (1) restart, (2) fetch the SAS package, (3) extract it,
+    # (4) load Python and import every module. On Linux Consumption with a ~1300-file
+    # package this can take 1-3 minutes. 'functionapp function list' hits the running
+    # host directly and returns 400/502 until the host is ready, so we retry with backoff.
+    Write-Host "Waiting for runtime to mount package and start the function host..."
+    $listAttempts = 12
+    $listDelaySeconds = 20
+    $functionList = $null
+    $lastListError = $null
+    for ($listAttempt = 1; $listAttempt -le $listAttempts; $listAttempt++) {
+        Start-Sleep -Seconds $listDelaySeconds
+        try {
+            $functionListRaw = Invoke-AzCli -Args @(
+                "functionapp", "function", "list",
+                "--name", $resolvedFunctionAppName,
+                "--resource-group", $ResourceGroupName,
+                "-o", "json",
+                "--only-show-errors"
+            )
+            $candidate = $functionListRaw | ConvertFrom-Json
+            if ($candidate -and $candidate.Count -gt 0) {
+                $functionList = $candidate
+                Write-Host ("Function host responded with {0} discovered function(s) after {1} attempt(s)." -f $candidate.Count, $listAttempt)
+                break
+            }
+            Write-Host ("Function host responded but reported 0 functions (attempt {0}/{1}). Waiting for host warm-up..." -f $listAttempt, $listAttempts)
+        }
+        catch {
+            $lastListError = $_.Exception.Message
+            Write-Host ("Function host not ready yet (attempt {0}/{1}). Retrying in {2}s..." -f $listAttempt, $listAttempts, $listDelaySeconds)
+        }
+    }
 
-    Write-Host "Verifying deployed function discovery..."
-    $functionListRaw = Invoke-AzCli -Args @(
-        "functionapp", "function", "list",
-        "--name", $resolvedFunctionAppName,
-        "--resource-group", $ResourceGroupName,
-        "-o", "json"
-    )
-    $functionList = $functionListRaw | ConvertFrom-Json
     if (-not $functionList -or $functionList.Count -eq 0) {
-        Stop-WithError "Deployment completed but zero functions were discovered in the Function App."
+        Write-Host ""
+        Write-Host "--- Function host did not become ready or reported zero functions. Diagnostics: ---"
+        Write-Host "App state:"
+        try {
+            Invoke-AzCli -Args @(
+                "functionapp", "show",
+                "--name", $resolvedFunctionAppName,
+                "--resource-group", $ResourceGroupName,
+                "--query", "{state:state, hostNames:defaultHostName, kind:kind, linuxFxVersion:siteConfig.linuxFxVersion}",
+                "-o", "json"
+            ) | Write-Host
+        }
+        catch { Write-Host "  (failed to read app state: $($_.Exception.Message))" }
+
+        Write-Host "Runtime app settings (relevant subset):"
+        try {
+            Invoke-AzCli -Args @(
+                "functionapp", "config", "appsettings", "list",
+                "--name", $resolvedFunctionAppName,
+                "--resource-group", $ResourceGroupName,
+                "--query", "[?contains(['FUNCTIONS_WORKER_RUNTIME','FUNCTIONS_EXTENSION_VERSION','WEBSITE_RUN_FROM_PACKAGE','AzureWebJobsStorage__accountName','FUNCTIONS_SMOKE_MODULE','APPLICATIONINSIGHTS_CONNECTION_STRING'], name)].{name:name,valueLength:length(value)}",
+                "-o", "table"
+            ) | Write-Host
+        }
+        catch { Write-Host "  (failed to read app settings: $($_.Exception.Message))" }
+
+        Write-Host "Last 50 lines of Function App log stream:"
+        try {
+            $logTail = Invoke-AzCli -Args @(
+                "webapp", "log", "tail",
+                "--name", $resolvedFunctionAppName,
+                "--resource-group", $ResourceGroupName,
+                "--timeout", "20"
+            ) 2>&1
+            $logTail | Select-Object -Last 50 | ForEach-Object { Write-Host "  $_" }
+        }
+        catch { Write-Host "  (failed to tail logs: $($_.Exception.Message))" }
+
+        if ($lastListError) {
+            Write-Host "Last function-list error: $lastListError"
+        }
+        Write-Host "------------------------------------------------------------------------------"
+        Stop-WithError "Function host did not report any functions after $($listAttempts * $listDelaySeconds) seconds. Check the diagnostics above (app state, settings, logs)."
     }
 
     Write-Host "Discovered functions:" 
