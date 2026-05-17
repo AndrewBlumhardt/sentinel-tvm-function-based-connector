@@ -130,8 +130,7 @@ function Invoke-AzCli {
     return $output
 }
 
-
-if (-not (Get-Command az -ErrorAction SilentlyContinue)) {
+function Test-FunctionAppNameConflict {
     param(
         [Parameter(Mandatory = $true)]
         [string]$Message,
@@ -141,6 +140,10 @@ if (-not (Get-Command az -ErrorAction SilentlyContinue)) {
     )
 
     return $Message -match "Website with given name $([regex]::Escape($FunctionAppName)) already exists"
+}
+
+if (-not (Get-Command az -ErrorAction SilentlyContinue)) {
+    Stop-WithError "Azure CLI (az) is required but was not found in PATH."
 }
 
 function Ensure-AzLogin {
@@ -629,13 +632,154 @@ try {
     ) | Out-Null
 
     Write-Host "Deploying function package via Azure CLI..."
-    Invoke-AzCli -Args @(
-        "functionapp", "deployment", "source", "config-zip",
-        "--name", $resolvedFunctionAppName,
-        "--resource-group", $ResourceGroupName,
-        "--src", $packagePath,
-        "--only-show-errors"
-    ) | Out-Null
+    try {
+        Invoke-AzCli -Args @(
+            "functionapp", "deployment", "source", "config-zip",
+            "--name", $resolvedFunctionAppName,
+            "--resource-group", $ResourceGroupName,
+            "--src", $packagePath,
+            "--only-show-errors"
+        ) | Out-Null
+    }
+    catch {
+        $deployError = $_.Exception.Message
+        $unsupportedPath = ($deployError -match "does not support this deployment path" -or $deployError -match "deployfromurl")
+        if (-not $unsupportedPath) {
+            throw
+        }
+
+        if ([string]::IsNullOrWhiteSpace($storageAccountId)) {
+            Stop-WithError "Zip deploy is not supported for this Function App and storage account output is unavailable for remote package deployment."
+        }
+
+        Write-Host "Zip deploy is unsupported for this hosting path. Falling back to remote package URL deployment (AAD auth, no storage keys)..."
+
+        $storageAccountName = ($storageAccountId -split "/")[-1]
+        $storageResourceGroupName = Get-ResourceIdSegment -ResourceId $storageAccountId -SegmentName "resourceGroups"
+        if ([string]::IsNullOrWhiteSpace($storageResourceGroupName)) {
+            $storageResourceGroupName = $ResourceGroupName
+        }
+
+        $blobBaseUrl = (Invoke-AzCli -Args @(
+            "storage", "account", "show",
+            "--ids", $storageAccountId,
+            "--query", "primaryEndpoints.blob",
+            "-o", "tsv",
+            "--only-show-errors"
+        )).Trim()
+        if ([string]::IsNullOrWhiteSpace($blobBaseUrl)) {
+            Stop-WithError "Failed to resolve blob endpoint for storage account '$storageAccountName'."
+        }
+
+        $containerName = "function-releases"
+        $blobName = "packages/{0}-{1}.zip" -f (Get-Date -Format "yyyyMMddHHmmss"), [guid]::NewGuid().ToString("N")
+
+        $deployIdentityObjectId = ""
+        if ($accountInfo.user.type -eq "servicePrincipal") {
+            $deployIdentityObjectId = (Invoke-AzCli -Args @(
+                "ad", "sp", "show", "--id", $accountInfo.user.name,
+                "--query", "id", "-o", "tsv", "--only-show-errors"
+            )).Trim()
+        }
+        else {
+            $deployIdentityObjectId = (Invoke-AzCli -Args @(
+                "ad", "signed-in-user", "show",
+                "--query", "id", "-o", "tsv", "--only-show-errors"
+            )).Trim()
+        }
+
+        $uploadSucceeded = $false
+        try {
+            Invoke-AzCli -Args @(
+                "storage", "container", "create",
+                "--account-name", $storageAccountName,
+                "--name", $containerName,
+                "--auth-mode", "login",
+                "--public-access", "off",
+                "--only-show-errors",
+                "-o", "none"
+            ) | Out-Null
+            Invoke-AzCli -Args @(
+                "storage", "blob", "upload",
+                "--account-name", $storageAccountName,
+                "--container-name", $containerName,
+                "--name", $blobName,
+                "--file", $packagePath,
+                "--overwrite", "true",
+                "--auth-mode", "login",
+                "--only-show-errors",
+                "-o", "none"
+            ) | Out-Null
+            $uploadSucceeded = $true
+        }
+        catch {
+            if ([string]::IsNullOrWhiteSpace($deployIdentityObjectId)) {
+                throw
+            }
+
+            Write-Host "Assigning 'Storage Blob Data Contributor' to deploy identity for AAD blob upload..."
+            $rbacCreated = Ensure-RoleAssignment -PrincipalId $deployIdentityObjectId -RoleName "Storage Blob Data Contributor" -Scope $storageAccountId
+            if ($rbacCreated) {
+                Write-Host "Role assignment created. Waiting 30 seconds for RBAC propagation..."
+                Start-Sleep -Seconds 30
+            }
+
+            Invoke-AzCli -Args @(
+                "storage", "container", "create",
+                "--account-name", $storageAccountName,
+                "--name", $containerName,
+                "--auth-mode", "login",
+                "--public-access", "off",
+                "--only-show-errors",
+                "-o", "none"
+            ) | Out-Null
+            Invoke-AzCli -Args @(
+                "storage", "blob", "upload",
+                "--account-name", $storageAccountName,
+                "--container-name", $containerName,
+                "--name", $blobName,
+                "--file", $packagePath,
+                "--overwrite", "true",
+                "--auth-mode", "login",
+                "--only-show-errors",
+                "-o", "none"
+            ) | Out-Null
+            $uploadSucceeded = $true
+        }
+
+        if (-not $uploadSucceeded) {
+            Stop-WithError "Failed to upload deployment package to storage using AAD auth."
+        }
+
+        $sasExpiry = (Get-Date).ToUniversalTime().AddHours(12).ToString("yyyy-MM-ddTHH:mmZ")
+        $sasToken = (Invoke-AzCli -Args @(
+            "storage", "blob", "generate-sas",
+            "--account-name", $storageAccountName,
+            "--container-name", $containerName,
+            "--name", $blobName,
+            "--permissions", "r",
+            "--expiry", $sasExpiry,
+            "--https-only",
+            "--as-user",
+            "--auth-mode", "login",
+            "--only-show-errors",
+            "-o", "tsv"
+        )).Trim()
+        if ([string]::IsNullOrWhiteSpace($sasToken)) {
+            Stop-WithError "Failed to generate user delegation SAS for remote package deployment."
+        }
+
+        $packageUrl = "{0}/{1}/{2}`?{3}" -f $blobBaseUrl.TrimEnd('/'), $containerName, $blobName, $sasToken
+
+        Invoke-AzCli -Args @(
+            "functionapp", "config", "appsettings", "set",
+            "--name", $resolvedFunctionAppName,
+            "--resource-group", $ResourceGroupName,
+            "--settings", "WEBSITE_RUN_FROM_PACKAGE=$packageUrl",
+            "--only-show-errors",
+            "-o", "none"
+        ) | Out-Null
+    }
     Write-Host "Function package deployed successfully."
 
     Write-Host "Restarting Function App after deployment..."
