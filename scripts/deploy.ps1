@@ -718,12 +718,72 @@ try {
         Write-Host "Run-from-package URL fallback configured successfully."
     }
 
+    function Invoke-KuduZipDeploy {
+        param(
+            [Parameter(Mandatory = $true)]
+            [hashtable]$Headers,
+            [Parameter(Mandatory = $true)]
+            [string]$KuduBase,
+            [Parameter(Mandatory = $true)]
+            [string]$PackagePath
+        )
+
+        $deployResponse = Invoke-WebRequest -Uri "$KuduBase/api/zipdeploy?isAsync=true" -Method Post -Headers $Headers -InFile $PackagePath -ContentType "application/zip"
+
+        $pollUrl = $deployResponse.Headers["Location"]
+        if ($pollUrl -is [System.Array]) {
+            $pollUrl = $pollUrl | Select-Object -First 1
+        }
+
+        $pollUrl = [string]$pollUrl
+        if ([string]::IsNullOrWhiteSpace($pollUrl)) {
+            $pollUrl = "$KuduBase/api/deployments/latest"
+        }
+
+        Write-Host "Polling Kudu deployment status..."
+        for ($attempt = 1; $attempt -le 90; $attempt++) {
+            Start-Sleep -Seconds 5
+            $kuduStatus = Invoke-RestMethod -Uri $pollUrl -Method Get -Headers $Headers
+            $statusCode = [int]$kuduStatus.status
+
+            if ($statusCode -eq 4) {
+                return [PSCustomObject]@{
+                    Success = $true
+                    Details = ($kuduStatus | ConvertTo-Json -Depth 8)
+                    Log = ""
+                }
+            }
+
+            if ($statusCode -eq 3) {
+                $deployId = $kuduStatus.id
+                $logDetails = ""
+                if (-not [string]::IsNullOrWhiteSpace($deployId)) {
+                    $logEntries = Invoke-RestMethod -Uri "$KuduBase/api/deployments/$deployId/log" -Method Get -Headers $Headers
+                    $logDetails = ($logEntries | ConvertTo-Json -Depth 12)
+                }
+
+                return [PSCustomObject]@{
+                    Success = $false
+                    Details = ($kuduStatus | ConvertTo-Json -Depth 8)
+                    Log = $logDetails
+                }
+            }
+        }
+
+        return [PSCustomObject]@{
+            Success = $false
+            Details = "Timed out waiting for Kudu deployment completion."
+            Log = ""
+        }
+    }
+
     Write-Host "Deploying function package to Kudu..."
     $headers = @{ Authorization = "Bearer $token" }
-    $deployResponse = $null
     $usedFallback = $false
+    $kuduResult = $null
+
     try {
-        $deployResponse = Invoke-WebRequest -Uri "$kuduBase/api/zipdeploy?isAsync=true" -Method Post -Headers $headers -InFile $packagePath -ContentType "application/zip"
+        $kuduResult = Invoke-KuduZipDeploy -Headers $headers -KuduBase $kuduBase -PackagePath $packagePath
     }
     catch {
         $kuduError = $_.Exception.Message
@@ -736,49 +796,42 @@ try {
         }
     }
 
-    if (-not $usedFallback) {
-        $pollUrl = $deployResponse.Headers["Location"]
-        if ($pollUrl -is [System.Array]) {
-            $pollUrl = $pollUrl | Select-Object -First 1
-        }
-        $pollUrl = [string]$pollUrl
-        if ([string]::IsNullOrWhiteSpace($pollUrl)) {
-            $pollUrl = "$kuduBase/api/deployments/latest"
-        }
+    if (-not $usedFallback -and -not $kuduResult.Success) {
+        if ($kuduResult.Log -match "Malformed SCM_RUN_FROM_PACKAGE") {
+            Write-Host "Detected malformed SCM_RUN_FROM_PACKAGE during Kudu deployment. Retrying Kudu after explicitly setting package flags..."
+            Invoke-AzCli -Args @(
+                "functionapp", "config", "appsettings", "set",
+                "--name", $resolvedFunctionAppName,
+                "--resource-group", $ResourceGroupName,
+                "--only-show-errors",
+                "-o", "none",
+                "--settings", "SCM_RUN_FROM_PACKAGE=0", "WEBSITE_RUN_FROM_PACKAGE=0", "SCM_DO_BUILD_DURING_DEPLOYMENT=false"
+            ) | Out-Null
 
-        Write-Host "Polling Kudu deployment status..."
-        $kuduStatus = $null
-        for ($attempt = 1; $attempt -le 90; $attempt++) {
-            Start-Sleep -Seconds 5
-            $kuduStatus = Invoke-RestMethod -Uri $pollUrl -Method Get -Headers $headers
-            $statusCode = [int]$kuduStatus.status
-
-            if ($statusCode -eq 4) {
-                break
+            try {
+                $kuduResult = Invoke-KuduZipDeploy -Headers $headers -KuduBase $kuduBase -PackagePath $packagePath
             }
-
-            if ($statusCode -eq 3) {
-                $deployId = $kuduStatus.id
-                $logDetails = ""
-                if (-not [string]::IsNullOrWhiteSpace($deployId)) {
-                    $logEntries = Invoke-RestMethod -Uri "$kuduBase/api/deployments/$deployId/log" -Method Get -Headers $headers
-                    $logDetails = ($logEntries | ConvertTo-Json -Depth 12)
-
-                    if ($logDetails -match "Malformed SCM_RUN_FROM_PACKAGE") {
-                        Write-Host "Detected malformed SCM_RUN_FROM_PACKAGE during Kudu deployment. Switching to run-from-package URL fallback..."
-                        Invoke-RunFromPackageUrlDeployment
-                        $usedFallback = $true
-                        break
-                    }
+            catch {
+                $kuduError = $_.Exception.Message
+                if ($kuduError -match "Kudu file share was not mounted") {
+                    Invoke-RunFromPackageUrlDeployment
+                    $usedFallback = $true
                 }
+                else {
+                    throw
+                }
+            }
 
-                Stop-WithError "Kudu deployment failed. Details: $($kuduStatus | ConvertTo-Json -Depth 8) Log: $logDetails"
+            if (-not $usedFallback -and -not $kuduResult.Success -and $kuduResult.Log -match "Malformed SCM_RUN_FROM_PACKAGE") {
+                Write-Host "Kudu still reports malformed SCM_RUN_FROM_PACKAGE after retry. Switching to run-from-package URL fallback..."
+                Invoke-RunFromPackageUrlDeployment
+                $usedFallback = $true
             }
         }
+    }
 
-        if (-not $usedFallback -and ($null -eq $kuduStatus -or [int]$kuduStatus.status -ne 4)) {
-            Stop-WithError "Kudu deployment did not complete successfully within timeout window."
-        }
+    if (-not $usedFallback -and -not $kuduResult.Success) {
+        Stop-WithError "Kudu deployment failed. Details: $($kuduResult.Details) Log: $($kuduResult.Log)"
     }
 
     Write-Host "Restarting Function App after deployment..."
