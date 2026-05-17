@@ -15,6 +15,7 @@ param(
 
     [string]$SubscriptionId = "",
     [string]$TenantId = "",
+    [string]$SmokeModule = "",
 
     [switch]$SkipLogin
 )
@@ -348,6 +349,13 @@ if ($missingSettings.Count -gt 0 -or $extraSettings.Count -gt 0 -or $shardMismat
         $message += " Shard mismatches: $($shardMismatches -join '; ')."
     }
     Stop-WithError $message
+}
+
+if (-not [string]::IsNullOrWhiteSpace($SmokeModule)) {
+    $smokeModulePath = Join-Path (Join-Path $PSScriptRoot "..\Functions") ("{0}.py" -f $SmokeModule)
+    if (-not (Test-Path $smokeModulePath)) {
+        Stop-WithError "Smoke module '$SmokeModule' was not found at '$smokeModulePath'."
+    }
 }
 
 if ([string]::IsNullOrWhiteSpace($WorkspaceResourceGroupName)) {
@@ -796,16 +804,52 @@ try {
 
         $packageUrl = "{0}/{1}/{2}`?{3}" -f $blobBaseUrl.TrimEnd('/'), $containerName, $blobName, $sasToken
 
-        Invoke-AzCli -Args @(
-            "functionapp", "config", "appsettings", "set",
+        $functionAppId = (Invoke-AzCli -Args @(
+            "functionapp", "show",
             "--name", $resolvedFunctionAppName,
             "--resource-group", $ResourceGroupName,
-            "--settings", "WEBSITE_RUN_FROM_PACKAGE=$packageUrl",
+            "--query", "id",
+            "-o", "tsv",
+            "--only-show-errors"
+        )).Trim()
+        if ([string]::IsNullOrWhiteSpace($functionAppId)) {
+            Stop-WithError "Failed to resolve Function App resource ID for WEBSITE_RUN_FROM_PACKAGE update."
+        }
+
+        $appSettingsBody = @{ properties = @{ WEBSITE_RUN_FROM_PACKAGE = $packageUrl } } | ConvertTo-Json -Depth 5 -Compress
+        Invoke-AzCli -Args @(
+            "rest",
+            "--method", "PATCH",
+            "--url", "https://management.azure.com$functionAppId/config/appsettings?api-version=2023-12-01",
+            "--body", $appSettingsBody,
             "--only-show-errors",
             "-o", "none"
         ) | Out-Null
     }
     Write-Host "Function package deployed successfully."
+
+    if ([string]::IsNullOrWhiteSpace($SmokeModule)) {
+        Write-Host "Smoke mode disabled. Removing FUNCTIONS_SMOKE_MODULE app setting if present..."
+        Invoke-AzCli -Args @(
+            "functionapp", "config", "appsettings", "delete",
+            "--name", $resolvedFunctionAppName,
+            "--resource-group", $ResourceGroupName,
+            "--setting-names", "FUNCTIONS_SMOKE_MODULE",
+            "--only-show-errors",
+            "-o", "none"
+        ) | Out-Null
+    }
+    else {
+        Write-Host "Smoke mode enabled. Limiting function discovery to module '$SmokeModule'."
+        Invoke-AzCli -Args @(
+            "functionapp", "config", "appsettings", "set",
+            "--name", $resolvedFunctionAppName,
+            "--resource-group", $ResourceGroupName,
+            "--settings", "FUNCTIONS_SMOKE_MODULE=$SmokeModule",
+            "--only-show-errors",
+            "-o", "none"
+        ) | Out-Null
+    }
 
     Write-Host "Restarting Function App after deployment..."
     Invoke-AzCli -Args @(

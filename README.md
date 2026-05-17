@@ -78,6 +78,19 @@ Required access for this step: `Contributor` on the deployment resource group.
   -SubscriptionId <subscription-id>
 ```
 
+For a minimal deployment smoke test (single function module only), add `-SmokeModule` with a module name from `Functions/` (without `.py`):
+
+```powershell
+./scripts/deploy.ps1 `
+  -ResourceGroupName <deployment-resource-group> `
+  -WorkspaceName <sentinel-workspace-name> `
+  -WorkspaceResourceGroupName <workspace-resource-group> `
+  -SubscriptionId <subscription-id> `
+  -SmokeModule device_tvm_software_inventory
+```
+
+Smoke mode sets `FUNCTIONS_SMOKE_MODULE` so only that module is registered at startup. Omitting `-SmokeModule` restores normal full-module discovery.
+
 By default, `deploy.ps1` leaves the Function App running after deployment.
 
 `deploy.ps1` prints the resolved Function App name during preflight. Use that exact value in follow-on commands.
