@@ -594,42 +594,118 @@ if (-not [string]::IsNullOrWhiteSpace($storageAccountId)) {
         $preflightStorageResourceGroup = $ResourceGroupName
     }
 
+    # Resolve deploy identity object ID (works for both user and service principal)
+    $deployIdentityObjectId = ""
+    if ($accountInfo.user.type -eq "servicePrincipal") {
+        try {
+            $deployIdentityObjectId = (Invoke-AzCli -Args @(
+                "ad", "sp", "show", "--id", $accountInfo.user.name,
+                "--query", "id", "-o", "tsv", "--only-show-errors"
+            )).Trim()
+        }
+        catch { }
+    }
+    else {
+        try {
+            $deployIdentityObjectId = (Invoke-AzCli -Args @(
+                "ad", "signed-in-user", "show",
+                "--query", "id", "-o", "tsv", "--only-show-errors"
+            )).Trim()
+        }
+        catch { }
+    }
+
+    # Test actual write access: container create is idempotent and requires write permissions
+    $preflightWriteOk = $false
     try {
         Invoke-AzCli -Args @(
-            "storage", "container", "exists",
+            "storage", "container", "create",
             "--account-name", $preflightStorageAccountName,
             "--name", "function-releases",
             "--auth-mode", "login",
+            "--public-access", "off",
             "--only-show-errors",
             "-o", "none"
         ) | Out-Null
+        $preflightWriteOk = $true
         Write-Host "Preflight: storage fallback can use AAD data-plane auth."
     }
     catch {
-        $preflightError = $_.Exception.Message
-        if ($preflightError -match "required permissions needed to perform this operation" -or
-            $preflightError -match "Storage Blob Data (Owner|Contributor|Reader)" -or
-            $preflightError -match "--auth-mode.*key") {
-            Write-Host "Preflight: storage data-plane RBAC is unavailable. Testing storage account key fallback..."
-            $resolvedAccountKey = (Invoke-AzCli -Args @(
-                "storage", "account", "keys", "list",
-                "--account-name", $preflightStorageAccountName,
+        $preflightWriteError = $_.Exception.Message
+    }
+
+    if (-not $preflightWriteOk) {
+        # Check whether key-based auth is allowed on this storage account
+        $allowSharedKey = ""
+        try {
+            $allowSharedKey = (Invoke-AzCli -Args @(
+                "storage", "account", "show",
+                "--name", $preflightStorageAccountName,
                 "--resource-group", $preflightStorageResourceGroup,
-                "--query", "[0].value",
-                "-o", "tsv",
-                "--only-show-errors"
+                "--query", "allowSharedKeyAccess",
+                "-o", "tsv", "--only-show-errors"
             )).Trim()
+        }
+        catch { }
 
-            if ([string]::IsNullOrWhiteSpace($resolvedAccountKey)) {
-                Stop-WithError "Fallback preflight failed: no storage data-plane RBAC and unable to retrieve storage account key. Grant either Storage Blob Data Contributor on '$preflightStorageAccountName' or permission to list storage account keys."
+        $keyAuthAllowed = ($allowSharedKey -ne "false")
+
+        if ($keyAuthAllowed) {
+            Write-Host "Preflight: AAD data-plane write unavailable. Testing storage account key fallback..."
+            $resolvedAccountKey = ""
+            try {
+                $resolvedAccountKey = (Invoke-AzCli -Args @(
+                    "storage", "account", "keys", "list",
+                    "--account-name", $preflightStorageAccountName,
+                    "--resource-group", $preflightStorageResourceGroup,
+                    "--query", "[0].value",
+                    "-o", "tsv", "--only-show-errors"
+                )).Trim()
             }
+            catch { }
 
-            $script:StorageFallbackAuthMode = "key"
-            $script:StorageFallbackAccountKey = $resolvedAccountKey
-            Write-Host "Preflight: storage fallback will use storage account key auth."
+            if (-not [string]::IsNullOrWhiteSpace($resolvedAccountKey)) {
+                $script:StorageFallbackAuthMode = "key"
+                $script:StorageFallbackAccountKey = $resolvedAccountKey
+                Write-Host "Preflight: storage fallback will use storage account key auth."
+            }
+            else {
+                Stop-WithError "Preflight failed: AAD data-plane write unavailable and unable to retrieve storage account key. Grant 'Storage Blob Data Contributor' on '$preflightStorageAccountName' or permission to list storage account keys."
+            }
         }
         else {
-            throw
+            # Key auth is disabled by policy — attempt to self-assign Storage Blob Data Contributor
+            Write-Host "Preflight: AAD data-plane write unavailable and key auth is disabled on '$preflightStorageAccountName'. Attempting to self-assign 'Storage Blob Data Contributor'..."
+
+            if ([string]::IsNullOrWhiteSpace($deployIdentityObjectId)) {
+                Stop-WithError "Preflight failed: unable to determine deploy identity object ID for self-assignment. Manually grant 'Storage Blob Data Contributor' on storage account '$preflightStorageAccountName' and redeploy."
+            }
+
+            $assigned = Ensure-RoleAssignment -PrincipalId $deployIdentityObjectId -RoleName "Storage Blob Data Contributor" -Scope $storageAccountId
+            if ($assigned) {
+                Write-Host "Preflight: 'Storage Blob Data Contributor' assigned to deploy identity. Waiting 30 seconds for RBAC propagation..."
+                Start-Sleep -Seconds 30
+            }
+            else {
+                Write-Host "Preflight: 'Storage Blob Data Contributor' already assigned (or propagation pending). Proceeding..."
+            }
+
+            # Retry write test after self-assignment
+            try {
+                Invoke-AzCli -Args @(
+                    "storage", "container", "create",
+                    "--account-name", $preflightStorageAccountName,
+                    "--name", "function-releases",
+                    "--auth-mode", "login",
+                    "--public-access", "off",
+                    "--only-show-errors",
+                    "-o", "none"
+                ) | Out-Null
+                Write-Host "Preflight: storage fallback confirmed with AAD data-plane auth after role assignment."
+            }
+            catch {
+                Stop-WithError "Preflight failed: storage write access unavailable even after self-assigning 'Storage Blob Data Contributor'. Key auth is disabled and data-plane RBAC did not propagate in time. Wait a few minutes and redeploy, or manually grant 'Storage Blob Data Contributor' on '$preflightStorageAccountName'."
+            }
         }
     }
 }
