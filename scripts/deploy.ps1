@@ -785,5 +785,14 @@ Write-Host "If needed, you can restart it with: az functionapp restart --name $r
 
 Start-Stage -Name "Completed"
 Write-Host "Deployment completed successfully."
+Write-Host ""
+Write-Host "Test now checklist:"
+Write-Host "  1) Grant Defender permissions:"
+$subscriptionId = $accountInfo.id
+Write-Host "     ./scripts/set-managed-identity-defender-permissions.ps1 -FunctionAppName $resolvedFunctionAppName -FunctionAppResourceGroup $ResourceGroupName -SubscriptionId $subscriptionId -GrantAdminConsent"
+Write-Host "  2) Confirm function discovery:"
+Write-Host "     az functionapp function list --name $resolvedFunctionAppName --resource-group $ResourceGroupName -o table"
+Write-Host "  3) Confirm dataset rule app settings:"
+Write-Host "     az functionapp config appsettings list --name $resolvedFunctionAppName --resource-group $ResourceGroupName --query `"[?starts_with(name,'DcrRuleId_')].[name,value]`" -o table"
 Complete-CurrentStage
 Show-TimingSummary
