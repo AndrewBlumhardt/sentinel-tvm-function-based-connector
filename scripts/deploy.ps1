@@ -307,19 +307,45 @@ if (-not (Test-Path $datasetConfigPath)) {
 }
 
 $datasetConfig = Get-Content -Path $datasetConfigPath -Raw | ConvertFrom-Json
-$datasetNames = @($datasetConfig.datasets | ForEach-Object { $_.name })
+$datasetEntries = @($datasetConfig.datasets)
 $templateText = Get-Content -Path $templatePath -Raw
-$mappedSettingNames = [regex]::Matches($templateText, 'DcrRuleId_[A-Za-z0-9]+') | ForEach-Object { $_.Value } | Sort-Object -Unique
-$expectedSettingNames = @($datasetNames | ForEach-Object { "DcrRuleId_$($_)" } | Sort-Object)
-$missingSettings = @($expectedSettingNames | Where-Object { $_ -notin $mappedSettingNames })
-$extraSettings = @($mappedSettingNames | Where-Object { $_ -notin $expectedSettingNames })
-if ($missingSettings.Count -gt 0 -or $extraSettings.Count -gt 0) {
+$mappedSettings = @{}
+foreach ($match in [regex]::Matches($templateText, 'DcrRuleId_(?<name>[A-Za-z0-9]+):\s+dataCollectionRules\[(?<index>\d+)\]\.properties\.immutableId')) {
+    $mappedSettings[$match.Groups['name'].Value] = [int]$match.Groups['index'].Value
+}
+
+$missingSettings = @()
+$extraSettings = @()
+$shardMismatches = @()
+
+foreach ($dataset in $datasetEntries) {
+    $settingName = "DcrRuleId_$($dataset.name)"
+    if (-not $mappedSettings.ContainsKey($dataset.name)) {
+        $missingSettings += $settingName
+        continue
+    }
+
+    if ([int]$dataset.ruleShardIndex -ne [int]$mappedSettings[$dataset.name]) {
+        $shardMismatches += "$settingName (json=$($dataset.ruleShardIndex), bicep=$($mappedSettings[$dataset.name]))"
+    }
+}
+
+foreach ($mappedName in $mappedSettings.Keys) {
+    if ($datasetEntries.name -notcontains $mappedName) {
+        $extraSettings += "DcrRuleId_$mappedName"
+    }
+}
+
+if ($missingSettings.Count -gt 0 -or $extraSettings.Count -gt 0 -or $shardMismatches.Count -gt 0) {
     $message = "Dataset-to-DCR app setting mapping drift detected between datasets.json and infra/main.bicep."
     if ($missingSettings.Count -gt 0) {
         $message += " Missing: $($missingSettings -join ', ')."
     }
     if ($extraSettings.Count -gt 0) {
         $message += " Extra: $($extraSettings -join ', ')."
+    }
+    if ($shardMismatches.Count -gt 0) {
+        $message += " Shard mismatches: $($shardMismatches -join '; ')."
     }
     Stop-WithError $message
 }
