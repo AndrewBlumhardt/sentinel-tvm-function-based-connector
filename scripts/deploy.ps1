@@ -728,7 +728,18 @@ try {
             [string]$PackagePath
         )
 
-        $deployResponse = Invoke-WebRequest -Uri "$KuduBase/api/zipdeploy?isAsync=true" -Method Post -Headers $Headers -InFile $PackagePath -ContentType "application/zip"
+        try {
+            $deployResponse = Invoke-WebRequest -Uri "$KuduBase/api/zipdeploy?isAsync=true" -Method Post -Headers $Headers -InFile $PackagePath -ContentType "application/zip"
+        }
+        catch {
+            $errorMsg = $_.Exception.Message
+            return [PSCustomObject]@{
+                Success = $false
+                Details = "Failed to upload zip to Kudu: $errorMsg"
+                Log = $errorMsg
+                IsFileShareError = ($errorMsg -match "file share|not mounted|WEBSITE_CONTENTAZUREFILECONNECTIONSTRING")
+            }
+        }
 
         $pollUrl = $deployResponse.Headers["Location"]
         if ($pollUrl -is [System.Array]) {
@@ -751,6 +762,7 @@ try {
                     Success = $true
                     Details = ($kuduStatus | ConvertTo-Json -Depth 8)
                     Log = ""
+                    IsFileShareError = $false
                 }
             }
 
@@ -766,6 +778,7 @@ try {
                     Success = $false
                     Details = ($kuduStatus | ConvertTo-Json -Depth 8)
                     Log = $logDetails
+                    IsFileShareError = $false
                 }
             }
         }
@@ -774,6 +787,7 @@ try {
             Success = $false
             Details = "Timed out waiting for Kudu deployment completion."
             Log = ""
+            IsFileShareError = $false
         }
     }
 
@@ -782,22 +796,15 @@ try {
     $usedFallback = $false
     $kuduResult = $null
 
-    try {
-        $kuduResult = Invoke-KuduZipDeploy -Headers $headers -KuduBase $kuduBase -PackagePath $packagePath
-    }
-    catch {
-        $kuduError = $_.Exception.Message
-        if ($kuduError -match "Kudu file share was not mounted") {
+    $kuduResult = Invoke-KuduZipDeploy -Headers $headers -KuduBase $kuduBase -PackagePath $packagePath
+
+    if (-not $kuduResult.Success) {
+        if ($kuduResult.IsFileShareError) {
+            Write-Host "Kudu file share is unavailable. Switching to run-from-package URL fallback..."
             Invoke-RunFromPackageUrlDeployment
             $usedFallback = $true
         }
-        else {
-            throw
-        }
-    }
-
-    if (-not $usedFallback -and -not $kuduResult.Success) {
-        if ($kuduResult.Log -match "Malformed SCM_RUN_FROM_PACKAGE") {
+        elseif ($kuduResult.Log -match "Malformed SCM_RUN_FROM_PACKAGE") {
             Write-Host "Detected malformed SCM_RUN_FROM_PACKAGE during Kudu deployment. Retrying Kudu after explicitly setting package flags..."
             Invoke-AzCli -Args @(
                 "functionapp", "config", "appsettings", "set",
@@ -808,31 +815,29 @@ try {
                 "--settings", "SCM_RUN_FROM_PACKAGE=0", "WEBSITE_RUN_FROM_PACKAGE=0", "SCM_DO_BUILD_DURING_DEPLOYMENT=false"
             ) | Out-Null
 
-            try {
-                $kuduResult = Invoke-KuduZipDeploy -Headers $headers -KuduBase $kuduBase -PackagePath $packagePath
-            }
-            catch {
-                $kuduError = $_.Exception.Message
-                if ($kuduError -match "Kudu file share was not mounted") {
+            $kuduResult = Invoke-KuduZipDeploy -Headers $headers -KuduBase $kuduBase -PackagePath $packagePath
+
+            if (-not $kuduResult.Success) {
+                if ($kuduResult.IsFileShareError) {
+                    Write-Host "Kudu file share is unavailable after retry. Switching to run-from-package URL fallback..."
+                    Invoke-RunFromPackageUrlDeployment
+                    $usedFallback = $true
+                }
+                elseif ($kuduResult.Log -match "Malformed SCM_RUN_FROM_PACKAGE") {
+                    Write-Host "Kudu still reports malformed SCM_RUN_FROM_PACKAGE after retry. Switching to run-from-package URL fallback..."
                     Invoke-RunFromPackageUrlDeployment
                     $usedFallback = $true
                 }
                 else {
-                    throw
+                    Stop-WithError "Kudu deployment failed. Details: $($kuduResult.Details) Log: $($kuduResult.Log)"
                 }
             }
-
-            if (-not $usedFallback -and -not $kuduResult.Success -and $kuduResult.Log -match "Malformed SCM_RUN_FROM_PACKAGE") {
-                Write-Host "Kudu still reports malformed SCM_RUN_FROM_PACKAGE after retry. Switching to run-from-package URL fallback..."
-                Invoke-RunFromPackageUrlDeployment
-                $usedFallback = $true
-            }
+        }
+        else {
+            Stop-WithError "Kudu deployment failed. Details: $($kuduResult.Details) Log: $($kuduResult.Log)"
         }
     }
 
-    if (-not $usedFallback -and -not $kuduResult.Success) {
-        Stop-WithError "Kudu deployment failed. Details: $($kuduResult.Details) Log: $($kuduResult.Log)"
-    }
 
     Write-Host "Restarting Function App after deployment..."
     Invoke-AzCli -Args @(
