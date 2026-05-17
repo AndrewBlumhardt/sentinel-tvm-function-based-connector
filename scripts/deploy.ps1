@@ -617,6 +617,17 @@ try {
 
     Compress-Archive -Path (Join-Path $buildRoot "*") -DestinationPath $packagePath -Force
 
+
+    Write-Host "Clearing run-from-package app settings before zip deploy..."
+    Invoke-AzCli -Args @(
+        "functionapp", "config", "appsettings", "delete",
+        "--name", $resolvedFunctionAppName,
+        "--resource-group", $ResourceGroupName,
+        "--setting-names", "WEBSITE_RUN_FROM_PACKAGE", "SCM_RUN_FROM_PACKAGE",
+        "--only-show-errors",
+        "-o", "none"
+    ) | Out-Null
+
     Write-Host "Deploying function package via Azure CLI..."
     Invoke-AzCli -Args @(
         "functionapp", "deployment", "source", "config-zip",
