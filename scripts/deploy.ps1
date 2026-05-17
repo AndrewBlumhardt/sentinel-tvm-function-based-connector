@@ -449,17 +449,9 @@ if ($deploymentResult.properties.outputs.functionPrincipalId.value) {
     $functionPrincipalId = $deploymentResult.properties.outputs.functionPrincipalId.value
 }
 
-elseif ($deploymentResult.properties.outputs.dataCollectionRuleImmutableId.value) {
-    $ruleIds = @($deploymentResult.properties.outputs.dataCollectionRuleImmutableId.value)
-}
-
 $storageAccountId = ""
 if ($deploymentResult.properties.outputs.storageAccountId.value) {
     $storageAccountId = $deploymentResult.properties.outputs.storageAccountId.value
-}
-
-if ($ruleIds.Count -eq 0) {
-    Stop-WithError "Deployment did not return Data Collection Rule immutable IDs."
 }
 
 Start-Stage -Name "Post-deploy DCR RBAC"
