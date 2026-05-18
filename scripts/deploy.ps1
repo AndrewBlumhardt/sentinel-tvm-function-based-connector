@@ -894,22 +894,29 @@ try {
         Stop-WithError "Failed to resolve Function App resource ID for WEBSITE_RUN_FROM_PACKAGE update."
     }
 
-    $appSettingsBody = @{ properties = @{ WEBSITE_RUN_FROM_PACKAGE = $packageUrl } } | ConvertTo-Json -Depth 5 -Compress
-    # The az CLI on Windows strips double quotes from --body arguments before sending the
-    # request, which corrupts JSON containing URLs (https://...). The documented workaround
-    # is to write the body to a UTF-8 (no BOM) file and pass it as "--body @path".
-    $bodyFile = Join-Path $tmpRoot "rfp-appsetting.json"
-    [System.IO.File]::WriteAllText($bodyFile, $appSettingsBody, [System.Text.UTF8Encoding]::new($false))
-    Write-Host "Updating WEBSITE_RUN_FROM_PACKAGE app setting with remote package URL..."
+    # IMPORTANT: do NOT call ARM PATCH on /config/appsettings directly -- that endpoint is a
+    # full replace, which wipes FUNCTIONS_WORKER_RUNTIME, FUNCTIONS_EXTENSION_VERSION,
+    # AzureWebJobsStorage__*, APPLICATIONINSIGHTS_CONNECTION_STRING, dataset toggles, etc.,
+    # and the host then cannot start. Instead use `az functionapp config appsettings set`
+    # which performs a merge. Pass settings via @file.json to avoid Windows shell tokenization
+    # of the SAS token (which contains '&', '=', and other special chars).
+    $settingsFile = Join-Path $tmpRoot "appsettings-merge.json"
+    $settingsArray = @(@{ name = "WEBSITE_RUN_FROM_PACKAGE"; value = $packageUrl; slotSetting = $false })
+    [System.IO.File]::WriteAllText(
+        $settingsFile,
+        ($settingsArray | ConvertTo-Json -Depth 5),
+        [System.Text.UTF8Encoding]::new($false)
+    )
+
+    Write-Host "Updating (merging) WEBSITE_RUN_FROM_PACKAGE app setting with remote package URL..."
     Write-Host "Package URL (SAS redacted): $($blobBaseUrl.TrimEnd('/'))/$containerName/$blobName?<sas-token-redacted>"
     Invoke-AzCli -Args @(
-        "rest",
-        "--method", "PATCH",
-        "--url", "$resourceManagerEndpoint$functionAppId/config/appsettings?api-version=2023-12-01",
-        "--headers", "Content-Type=application/json",
-        "--body", "@$bodyFile",
+        "functionapp", "config", "appsettings", "set",
+        "--name", $resolvedFunctionAppName,
+        "--resource-group", $ResourceGroupName,
+        "--settings", "@$settingsFile",
         "--only-show-errors",
-        "-o", "json"
+        "-o", "none"
     ) | Out-Null
     Write-Host "Function package deployed successfully. App will restart automatically."
 
@@ -976,17 +983,33 @@ try {
         }
         catch { Write-Host "  (failed to read app settings: $($_.Exception.Message))" }
 
-        Write-Host "Last 50 lines of Function App log stream:"
+        Write-Host "Recent Function App log entries (downloaded snapshot):"
         try {
-            $logTail = Invoke-AzCli -Args @(
-                "webapp", "log", "tail",
+            $logZipPath = Join-Path $tmpRoot "appservice-logs.zip"
+            Invoke-AzCli -Args @(
+                "webapp", "log", "download",
                 "--name", $resolvedFunctionAppName,
                 "--resource-group", $ResourceGroupName,
-                "--timeout", "20"
-            ) 2>&1
-            $logTail | Select-Object -Last 50 | ForEach-Object { Write-Host "  $_" }
+                "--log-file", $logZipPath,
+                "--only-show-errors"
+            ) | Out-Null
+            if (Test-Path $logZipPath) {
+                $logExtractDir = Join-Path $tmpRoot "appservice-logs"
+                Expand-Archive -Path $logZipPath -DestinationPath $logExtractDir -Force
+                $latestLogFiles = Get-ChildItem -Path $logExtractDir -Recurse -File |
+                    Where-Object { $_.Extension -in '.log', '.txt' } |
+                    Sort-Object LastWriteTime -Descending |
+                    Select-Object -First 3
+                foreach ($f in $latestLogFiles) {
+                    Write-Host "  --- $($f.FullName) (last 30 lines) ---"
+                    Get-Content -Path $f.FullName -Tail 30 | ForEach-Object { Write-Host "    $_" }
+                }
+            }
+            else {
+                Write-Host "  (no log archive produced)"
+            }
         }
-        catch { Write-Host "  (failed to tail logs: $($_.Exception.Message))" }
+        catch { Write-Host "  (failed to download logs: $($_.Exception.Message))" }
 
         if ($lastListError) {
             Write-Host "Last function-list error: $lastListError"
