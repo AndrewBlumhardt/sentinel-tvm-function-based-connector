@@ -229,65 +229,58 @@ resource functionApp 'Microsoft.Web/sites@2023-12-01' = {
       linuxFxVersion: 'Python|3.11'
       minTlsVersion: '1.2'
       ftpsState: 'Disabled'
-      appSettings: concat(mergedAppSettings, [
-        {
-          name: 'APPLICATIONINSIGHTS_CONNECTION_STRING'
-          value: appInsights.properties.ConnectionString
-        }
-        {
-          name: 'AzureWebJobsStorage__accountName'
-          value: storage.name
-        }
-        {
-          name: 'AzureWebJobsStorage__credential'
-          value: 'managedidentity'
-        }
-        {
-          name: 'AzureWebJobsStorage__blobServiceUri'
-          value: 'https://${storage.name}.blob.${environment().suffixes.storage}'
-        }
-        {
-          name: 'AzureWebJobsStorage__queueServiceUri'
-          value: 'https://${storage.name}.queue.${environment().suffixes.storage}'
-        }
-        {
-          name: 'AzureWebJobsStorage__tableServiceUri'
-          value: 'https://${storage.name}.table.${environment().suffixes.storage}'
-        }
-      ])
+      // appSettings intentionally omitted here. All settings (runtime, storage, App Insights,
+      // dataset toggles, schedules, and per-dataset DcrRuleId_*) are applied as a single
+      // authoritative full-replace via the child Microsoft.Web/sites/config/appsettings
+      // resource below. Splitting between siteConfig.appSettings and the child resource
+      // causes the child resource (which is full-replace) to wipe anything not duplicated
+      // in it -- including FUNCTIONS_WORKER_RUNTIME, FUNCTIONS_EXTENSION_VERSION,
+      // AzureWebJobsStorage__*, and APPLICATIONINSIGHTS_CONNECTION_STRING, which prevents
+      // the Function host from starting.
     }
   }
 }
-resource functionAppDatasetSettings 'Microsoft.Web/sites/config@2023-12-01' = {
+// Single authoritative app-settings resource. Microsoft.Web/sites/config/appsettings has
+// FULL-REPLACE semantics, so this MUST contain every setting the Function App needs.
+resource functionAppSettings 'Microsoft.Web/sites/config@2023-12-01' = {
   parent: functionApp
   name: 'appsettings'
-  properties: {
-    DcrRuleId_DeviceTvmSoftwareInventory: dataCollectionRules[0].properties.immutableId
-    DcrRuleId_DeviceTvmSoftwareVulnerabilities: dataCollectionRules[0].properties.immutableId
-    DcrRuleId_DeviceTvmSoftwareVulnerabilitiesKB: dataCollectionRules[0].properties.immutableId
-    DcrRuleId_DeviceTvmSecureConfigurationAssessment: dataCollectionRules[0].properties.immutableId
-    DcrRuleId_DeviceTvmSecureConfigurationAssessmentKB: dataCollectionRules[0].properties.immutableId
-    DcrRuleId_DeviceTvmSoftwareEvidenceBeta: dataCollectionRules[0].properties.immutableId
-    DcrRuleId_DeviceTvmBrowserExtensions: dataCollectionRules[0].properties.immutableId
-    DcrRuleId_DeviceTvmBrowserExtensionsKB: dataCollectionRules[0].properties.immutableId
-    DcrRuleId_DeviceTvmCertificateInfo: dataCollectionRules[0].properties.immutableId
-    DcrRuleId_DeviceTvmHardwareFirmware: dataCollectionRules[0].properties.immutableId
-    DcrRuleId_DeviceTvmInfoGathering: dataCollectionRules[1].properties.immutableId
-    DcrRuleId_DeviceTvmInfoGatheringKB: dataCollectionRules[1].properties.immutableId
-    DcrRuleId_ApiSoftwareVulnerabilitiesByMachine: dataCollectionRules[1].properties.immutableId
-    DcrRuleId_ApiMachines: dataCollectionRules[1].properties.immutableId
-    DcrRuleId_ApiSoftwareInventoryByMachine: dataCollectionRules[1].properties.immutableId
-    DcrRuleId_ApiNonCpeSoftwareInventory: dataCollectionRules[1].properties.immutableId
-    DcrRuleId_ApiRecommendations: dataCollectionRules[1].properties.immutableId
-    DcrRuleId_ApiSecureConfigurationAssessmentByMachine: dataCollectionRules[1].properties.immutableId
-    DcrRuleId_ApiVulnerabilitiesCatalog: dataCollectionRules[1].properties.immutableId
-    DcrRuleId_ApiBrowserExtensionsInventory: dataCollectionRules[1].properties.immutableId
-    DcrRuleId_ApiBrowserExtensionPermissions: dataCollectionRules[2].properties.immutableId
-    DcrRuleId_ApiCertificateInventoryAssessment: dataCollectionRules[2].properties.immutableId
-    DcrRuleId_ApiHardwareFirmwareAssessment: dataCollectionRules[2].properties.immutableId
-    DcrRuleId_NistCveCatalog: dataCollectionRules[2].properties.immutableId
-    DcrRuleId_NistCpeConfigurations: dataCollectionRules[2].properties.immutableId
-  }
+  properties: union(
+    toObject(mergedAppSettings, s => s.name, s => s.value),
+    {
+      APPLICATIONINSIGHTS_CONNECTION_STRING: appInsights.properties.ConnectionString
+      AzureWebJobsStorage__accountName: storage.name
+      AzureWebJobsStorage__credential: 'managedidentity'
+      AzureWebJobsStorage__blobServiceUri: 'https://${storage.name}.blob.${environment().suffixes.storage}'
+      AzureWebJobsStorage__queueServiceUri: 'https://${storage.name}.queue.${environment().suffixes.storage}'
+      AzureWebJobsStorage__tableServiceUri: 'https://${storage.name}.table.${environment().suffixes.storage}'
+      DcrRuleId_DeviceTvmSoftwareInventory: dataCollectionRules[0].properties.immutableId
+      DcrRuleId_DeviceTvmSoftwareVulnerabilities: dataCollectionRules[0].properties.immutableId
+      DcrRuleId_DeviceTvmSoftwareVulnerabilitiesKB: dataCollectionRules[0].properties.immutableId
+      DcrRuleId_DeviceTvmSecureConfigurationAssessment: dataCollectionRules[0].properties.immutableId
+      DcrRuleId_DeviceTvmSecureConfigurationAssessmentKB: dataCollectionRules[0].properties.immutableId
+      DcrRuleId_DeviceTvmSoftwareEvidenceBeta: dataCollectionRules[0].properties.immutableId
+      DcrRuleId_DeviceTvmBrowserExtensions: dataCollectionRules[0].properties.immutableId
+      DcrRuleId_DeviceTvmBrowserExtensionsKB: dataCollectionRules[0].properties.immutableId
+      DcrRuleId_DeviceTvmCertificateInfo: dataCollectionRules[0].properties.immutableId
+      DcrRuleId_DeviceTvmHardwareFirmware: dataCollectionRules[0].properties.immutableId
+      DcrRuleId_DeviceTvmInfoGathering: dataCollectionRules[1].properties.immutableId
+      DcrRuleId_DeviceTvmInfoGatheringKB: dataCollectionRules[1].properties.immutableId
+      DcrRuleId_ApiSoftwareVulnerabilitiesByMachine: dataCollectionRules[1].properties.immutableId
+      DcrRuleId_ApiMachines: dataCollectionRules[1].properties.immutableId
+      DcrRuleId_ApiSoftwareInventoryByMachine: dataCollectionRules[1].properties.immutableId
+      DcrRuleId_ApiNonCpeSoftwareInventory: dataCollectionRules[1].properties.immutableId
+      DcrRuleId_ApiRecommendations: dataCollectionRules[1].properties.immutableId
+      DcrRuleId_ApiSecureConfigurationAssessmentByMachine: dataCollectionRules[1].properties.immutableId
+      DcrRuleId_ApiVulnerabilitiesCatalog: dataCollectionRules[1].properties.immutableId
+      DcrRuleId_ApiBrowserExtensionsInventory: dataCollectionRules[1].properties.immutableId
+      DcrRuleId_ApiBrowserExtensionPermissions: dataCollectionRules[2].properties.immutableId
+      DcrRuleId_ApiCertificateInventoryAssessment: dataCollectionRules[2].properties.immutableId
+      DcrRuleId_ApiHardwareFirmwareAssessment: dataCollectionRules[2].properties.immutableId
+      DcrRuleId_NistCveCatalog: dataCollectionRules[2].properties.immutableId
+      DcrRuleId_NistCpeConfigurations: dataCollectionRules[2].properties.immutableId
+    }
+  )
 }
 
 output functionAppName string = functionApp.name

@@ -900,11 +900,15 @@ try {
     # and the host then cannot start. Instead use `az functionapp config appsettings set`
     # which performs a merge. Pass settings via @file.json to avoid Windows shell tokenization
     # of the SAS token (which contains '&', '=', and other special chars).
+    #
+    # `appsettings set --settings @file.json` requires a FLAT JSON object {"KEY":"VALUE"}.
+    # The ARM array-of-objects form [{name,value,slotSetting}] is wrong here and causes az to
+    # create literal settings named "name", "value", and "slotSetting".
     $settingsFile = Join-Path $tmpRoot "appsettings-merge.json"
-    $settingsArray = @(@{ name = "WEBSITE_RUN_FROM_PACKAGE"; value = $packageUrl; slotSetting = $false })
+    $settingsObject = [ordered]@{ WEBSITE_RUN_FROM_PACKAGE = $packageUrl }
     [System.IO.File]::WriteAllText(
         $settingsFile,
-        ($settingsArray | ConvertTo-Json -Depth 5),
+        ($settingsObject | ConvertTo-Json -Depth 5),
         [System.Text.UTF8Encoding]::new($false)
     )
 
