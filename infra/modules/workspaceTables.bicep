@@ -22,7 +22,9 @@ resource customTables 'Microsoft.OperationalInsights/workspaces/tables@2023-09-0
         type: replace(col.type, 'datetime', 'dateTime')
       }]
     }
-    retentionInDays: 30
-    totalRetentionInDays: 30
+    // -1 = inherit the workspace's default retention (interactive + total).
+    // Per Microsoft docs for Microsoft.OperationalInsights/workspaces/tables.
+    retentionInDays: -1
+    totalRetentionInDays: -1
   }
 }]
