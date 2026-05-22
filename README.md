@@ -111,12 +111,26 @@ az functionapp stop --name <function-app-name> --resource-group <deployment-reso
 
 ### 4) Grant managed identity permissions
 
-Required Entra role for this step (one of):
+This step assigns Microsoft Defender / Threat Protection app roles directly to the Function App's system-assigned managed identity. For a managed identity, an app role assignment **is** the admin consent — there is no separate "grant admin consent" button to click afterward. Because of that, the person who runs this step must have Entra ID privileges that allow writing app role assignments on resource service principals (Microsoft Graph, WindowsDefenderATP, Microsoft Threat Protection).
 
-- `Application Administrator`
-- `Cloud Application Administrator`
+**Permissions required to deploy infrastructure (Step 3 only):**
+
+- Azure RBAC: `Contributor` on the deployment resource group.
+- Azure RBAC: `Contributor` (or write access to `Microsoft.OperationalInsights/workspaces/tables`) on the Sentinel workspace's resource group, so `workspaceTables.bicep` can create the custom `_CL` tables.
+- No Entra ID role is required for Step 3.
+
+**Permissions required to grant admin consent (Step 4):** one of the following Entra ID directory roles:
+
 - `Privileged Role Administrator`
 - `Global Administrator`
+
+> `Application Administrator` and `Cloud Application Administrator` can register apps but generally cannot grant *resource API* app role assignments (which is what this script does); the operation will fail with a 403 from Microsoft Graph.
+
+Alternatively, the script can be run by any principal that has been granted the Graph application permission `AppRoleAssignment.ReadWrite.All` (already consented in the tenant).
+
+#### Path A — The deployer also has admin-consent rights
+
+Run both scripts back to back:
 
 ```powershell
 ./scripts/set-managed-identity-defender-permissions.ps1 `
@@ -127,6 +141,36 @@ Required Entra role for this step (one of):
 ```
 
 > **Azure Government (GCC High):** Add `-CloudName AzureUSGovernment` to the command above.
+
+#### Path B — The deployer does NOT have admin-consent rights
+
+You can complete Step 3 (infrastructure + code) without any Entra privileges. The Function App will deploy successfully and the host will start, but every dataset call to Defender / Advanced Hunting will fail with `403 Forbidden` until an Entra admin completes this step.
+
+After Step 3, capture the values the admin will need:
+
+```powershell
+$funcName = "<function-app-name>"
+$deployRg = "<deployment-resource-group>"
+
+az functionapp identity show `
+  --name $funcName `
+  --resource-group $deployRg `
+  --query "{principalId:principalId, tenantId:tenantId}" -o table
+```
+
+Send the admin:
+
+- The Function App name and resource group (or principal ID from above).
+- A link to this repository, or just the script path: `scripts/set-managed-identity-defender-permissions.ps1`.
+- The list of permissions to grant (these are also the script's defaults):
+  - `AdvancedHunting.Read.All` (Microsoft Threat Protection)
+  - `Machine.Read.All` (WindowsDefenderATP)
+  - `Software.Read.All` (WindowsDefenderATP)
+  - `Vulnerability.Read.All` (WindowsDefenderATP)
+  - `SecurityRecommendation.Read.All` (WindowsDefenderATP)
+  - `SecurityConfiguration.Read.All` (WindowsDefenderATP)
+
+The admin then runs the same command shown in Path A. The script is idempotent — re-running it only adds missing assignments. Once consent is granted, function runs will succeed on their next scheduled invocation (no redeploy required).
 
 ### 5) Confirm deployed resources
 
