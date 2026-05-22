@@ -391,3 +391,27 @@ az account show --query "{subscription:id, tenant:tenantId}" -o table
 az functionapp config appsettings list --name <function-app-name> --resource-group <resource-group> --query "[?name=='LogsIngestion__Endpoint' || starts_with(name,'DcrRuleId_')]" -o table
 az role assignment list --assignee <function-mi-object-id> --scope /subscriptions/<sub-id>/resourceGroups/<deployment-rg> --query "[?roleDefinitionName=='Monitoring Metrics Publisher']" -o table
 ```
+
+### Post-deployment verification checklist
+
+Walk this list in the Azure portal after a deploy (or any permissions change) to confirm the pipeline is healthy end to end.
+
+1. **Function App → Functions blade.** Open the Function App and click **Functions**. You should see all **25 timer-triggered functions** listed (one per dataset). If the list is empty or short, the package didn't load — check the deployment logs and confirm `WEBSITE_RUN_FROM_PACKAGE` is set and the SAS URL is still valid.
+
+2. **Function App → Identity → Azure role assignments.** Confirm the system-assigned managed identity holds the Azure RBAC roles it needs:
+   - `Monitoring Metrics Publisher` on the deployment resource group (DCR ingestion).
+   - `Storage Blob Data Owner` and `Storage Queue Data Contributor` on the Function App's storage account (identity-based `AzureWebJobsStorage`).
+
+3. **Entra ID → Enterprise applications → API permissions.** This is where the Defender / Threat Protection app roles live. They are *not* visible on the Function App's Identity blade.
+   - Go to **Microsoft Entra ID → Enterprise applications**.
+   - **Uncheck the "Application type == Enterprise Applications" filter** (or change it to **All applications**). Managed identities are hidden by the default filter and won't appear otherwise.
+   - Search for the Function App name, open its service principal, and click **Permissions**.
+   - Verify all six Defender app roles from Step 4 are listed (AdvancedHunting.Read.All, Machine.Read.All, Software.Read.All, Vulnerability.Read.All, SecurityRecommendation.Read.All, SecurityConfiguration.Read.All).
+
+4. **Log Analytics workspace → Tables.** Open the Sentinel workspace and go to **Tables**. You should see all 25 `<DatasetName>_CL` custom tables. This is the authoritative view — tables show up here as soon as Bicep creates them, even before any data lands.
+
+5. **Log Analytics workspace → Logs.** The query analyzer's table tree hides empty tables by default. If you don't see your `_CL` tables there:
+   - Click the filter icon in the table list and **uncheck "Hide empty tables"**.
+   - Tables only stop being "empty" after the first successful ingestion. If they stay empty after a function run cycle, look at the Function App's Application Insights traces.
+
+6. **Restart after permission changes.** If you fix or add any role assignment or app-role grant, **restart the Function App** (`Function App → Overview → Restart`, or `az functionapp restart`). The host caches credentials and DCR clients at startup, so a restart is required to pick up new permissions and re-initialize the ingestion pipelines. Otherwise the next scheduled run can still fail with stale 403s.
