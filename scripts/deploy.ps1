@@ -506,7 +506,15 @@ if ($null -eq $deploymentResultRaw) {
     Stop-WithError "Deployment did not complete after $deploymentAttempts attempts. If the Function App name was just deleted, wait a few minutes and redeploy, or choose a different -FunctionAppName."
 }
 
-$deploymentResult = $deploymentResultRaw | ConvertFrom-Json
+# Invoke-AzCli captures stderr too (2>&1), so az CLI WARNING lines can land in front of the JSON
+# payload and break ConvertFrom-Json. Trim to the first '{' so warnings are tolerated.
+$deploymentResultJson = ($deploymentResultRaw | Out-String)
+$jsonStart = $deploymentResultJson.IndexOf('{')
+if ($jsonStart -lt 0) {
+    Stop-WithError "Deployment returned no JSON payload. Raw output:`n$deploymentResultJson"
+}
+$deploymentResultJson = $deploymentResultJson.Substring($jsonStart)
+$deploymentResult = $deploymentResultJson | ConvertFrom-Json
 
 $functionPrincipalId = ""
 if ($deploymentResult.properties.outputs.functionPrincipalId.value) {
