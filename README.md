@@ -129,14 +129,19 @@ By default, `deploy.ps1` leaves the Function App running after deployment.
 
 The Defender for Endpoint REST APIs are generally available in GCC High, but a subset of capabilities under **Microsoft Defender Vulnerability Management (MDVM) premium** are not exposed on Government clouds (see [Defender for Endpoint for US Government customers](https://learn.microsoft.com/en-us/defender-endpoint/gov) — "Microsoft Defender Vulnerability Management premium capabilities" is listed in the feature-parity gaps).
 
-Observed on GCC High during testing:
+Observed on GCC High during testing (confirmed via `/api/healthcheck?full=1` — see Step 4c):
 
-| Dataset | Status on GCC High | Notes |
-| --- | --- | --- |
-| `ApiBrowserExtensionsInventory` | 404 from `/api/BrowserExtensionsInventories` | MDVM premium — browser extensions assessment not surfaced on Gov. |
-| `ApiBrowserExtensionsPermissions` | 404 from `/api/BrowserExtensionsPermissions` | Same as above. |
+| Dataset | Endpoint | Status on GCC High | Notes |
+| --- | --- | --- | --- |
+| `ApiNonCpeSoftwareInventory` | `/api/SoftwareInventories/NonCpeSoftwareInventory` | 404 | MDVM premium — non-CPE software inventory not surfaced on Gov. |
+| `ApiBrowserExtensionsInventory` | `/api/BrowserExtensionsInventories` | 404 | MDVM premium — browser extensions assessment not surfaced on Gov. |
+| `ApiBrowserExtensionPermissions` | `/api/BrowserExtensionsPermissions` | 404 | Same as above. |
+| `ApiCertificateInventoryAssessment` | `/api/CertificateInventories` | 404 | MDVM premium — certificate inventory not surfaced on Gov. |
+| `ApiHardwareFirmwareAssessment` | `/api/HardwareFirmwareAssessments` | 404 | MDVM premium — hardware/firmware assessment not surfaced on Gov. |
 
-If you hit a `404 Not Found` on a specific `/api/*` endpoint from a GCC High tenant (and the Defender base URL is otherwise correct), the most likely cause is that the capability isn't available in your cloud. Disable that individual function using the steps above and watch the [Defender for Endpoint Gov parity page](https://learn.microsoft.com/en-us/defender-endpoint/gov) for updates. All other datasets in `Functions/datasets.json` are expected to work on Gov.
+**Recommended on GCC High:** disable these five functions in the portal (Function App → Functions → \<name\> → toggle **Enabled** to off, or set the app setting `AzureWebJobs.<FunctionName>.Disabled=true`). Leaving them enabled is harmless — they will just log a 404 on every scheduled tick and produce no rows — but disabling them keeps your **Invocations** view clean so real failures stand out.
+
+If you hit a `404 Not Found` on a different `/api/*` endpoint from a GCC High tenant (and the Defender base URL is otherwise correct), the most likely cause is that the capability isn't available in your cloud. Disable that individual function as above and watch the [Defender for Endpoint Gov parity page](https://learn.microsoft.com/en-us/defender-endpoint/gov) for updates. All other datasets in `Functions/datasets.json` are expected to work on Gov.
 
 #### Cloud selection and Defender endpoint
 
