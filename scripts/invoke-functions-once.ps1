@@ -94,30 +94,44 @@ else {
     }
 
     if ($functions.Count -eq 0) {
-        # Fall back to enumerating from local function.json files in the repo so the user can
-        # still verify against a freshly-deployed app where the management plane is slow to
-        # reflect the function list.
+        # Fall back to enumerating from the repo. This connector uses the Python v2
+        # programming model (no per-function function.json), so look in two places:
+        #   1) Functions\*.py with build_timer_blueprint(function_name="...")
+        #   2) Any <dir>\function.json (classic v1 model, just in case)
         $repoRoot = Split-Path -Parent $PSScriptRoot
-        $localFunctions = Get-ChildItem -Path $repoRoot -Recurse -Filter "function.json" -ErrorAction SilentlyContinue |
-            Where-Object { $_.FullName -notmatch '\\.venv\\|\\node_modules\\|\\.python_packages\\' }
-        if ($localFunctions) {
-            Write-Warning "Management plane returned 0 functions. Falling back to local function.json files in the repo."
+        Write-Warning "Management plane returned 0 functions. Falling back to repo source under $repoRoot."
+
+        $pyFiles = Get-ChildItem -Path (Join-Path $repoRoot 'Functions') -Filter '*.py' -ErrorAction SilentlyContinue |
+            Where-Object { $_.Name -notin @('__init__.py', 'common.py') }
+        foreach ($pf in $pyFiles) {
+            $content = Get-Content -Raw -Path $pf.FullName
+            $match = [regex]::Match($content, 'function_name\s*=\s*["'']([^"'']+)["'']')
+            if ($match.Success) {
+                $targets += $match.Groups[1].Value
+            }
+        }
+
+        if ($targets.Count -eq 0) {
+            $localFunctions = Get-ChildItem -Path $repoRoot -Recurse -Filter "function.json" -ErrorAction SilentlyContinue |
+                Where-Object { $_.FullName -notmatch '\\.venv\\|\\node_modules\\|\\.python_packages\\' }
             foreach ($lf in $localFunctions) {
                 try {
                     $cfg = Get-Content -Raw -Path $lf.FullName | ConvertFrom-Json
                     $hasTimer = $false
                     foreach ($b in $cfg.bindings) { if ($b.type -eq 'timerTrigger') { $hasTimer = $true; break } }
                     if ($hasTimer) {
-                        $name = Split-Path -Leaf $lf.DirectoryName
-                        $targets += $name
+                        $targets += (Split-Path -Leaf $lf.DirectoryName)
                     }
                 }
                 catch { }
             }
         }
+
         if ($targets.Count -eq 0) {
-            throw "No functions returned after $($listAttempts * $listDelaySeconds) seconds and no local function.json files were found. The host may still be loading the package (check WEBSITE_RUN_FROM_PACKAGE), or you may lack 'Microsoft.Web/sites/functions/read' on the app. Try: az functionapp function list --name $FunctionAppName --resource-group $ResourceGroupName -o table"
+            throw "No functions returned after $($listAttempts * $listDelaySeconds) seconds and no function names could be parsed from the repo. The host may still be loading the package (check WEBSITE_RUN_FROM_PACKAGE), or you may lack 'Microsoft.Web/sites/functions/read' on the app. Try: az functionapp function list --name $FunctionAppName --resource-group $ResourceGroupName -o table"
         }
+
+        Write-Host "Discovered $($targets.Count) function name(s) from repo source."
     }
     else {
         foreach ($f in $functions) {
