@@ -66,6 +66,16 @@ az cloud show --query name -o tsv
 az account show --query "{subscription:id, tenant:tenantId, user:user.name}" -o table
 ```
 
+> **Sign in to the Azure portal first.** Before running `az login`, sign in to the Azure portal in a browser with the same account you'll use for the deploy. This forces an interactive MFA challenge and lets you activate any **Privileged Identity Management (PIM)** eligible roles (typically `Contributor` on the deployment RG, plus whatever role gives you write access on the Sentinel workspace's RG). Without an active PIM assignment the CLI session will pick up only your standing permissions, and `deploy.ps1` will loop on `403 Forbidden` errors during the storage-package upload stage with messages like:
+>
+> ```
+> You do not have the required permissions needed to perform this operation.
+> Depending on your operation, you may need to be assigned one of the following roles:
+>   "Storage Blob Data Owner"
+> ```
+>
+> If you see this, activate PIM, then run `az logout && az login` (or `az account get-access-token --resource-type arm` to force a token refresh) and rerun the deploy. The script will pick up where it left off — RBAC propagation can also take a couple of minutes, so a 2-3 attempt retry is normal even with the right role active.
+
 ### 3) Deploy infrastructure and publish function code
 
 Required access for this step: `Contributor` on the deployment resource group.
