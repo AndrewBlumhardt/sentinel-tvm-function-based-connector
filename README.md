@@ -187,6 +187,8 @@ az functionapp stop --name <function-app-name> --resource-group <deployment-reso
 
 ### 4) Grant managed identity permissions
 
+> **`deploy.ps1` now runs this step automatically** when the deployer has Entra admin-consent rights (Global Admin / Privileged Role Administrator). It also restarts the Function App so newly-granted tokens take effect immediately, then prints a one-line `healthcheck` URL you can `curl` to verify Defender connectivity in seconds rather than waiting 30 minutes for a scheduled tick. If you don't have admin-consent rights, pass `-SkipPermissions` to `deploy.ps1` and follow **Path B** below.
+
 This step assigns Microsoft Defender / Threat Protection app roles directly to the Function App's system-assigned managed identity. For a managed identity, an app role assignment **is** the admin consent — there is no separate "grant admin consent" button to click afterward. Because of that, the person who runs this step must have Entra ID privileges that allow writing app role assignments on resource service principals (Microsoft Graph, WindowsDefenderATP, Microsoft Threat Protection).
 
 **Permissions required to deploy infrastructure (Step 3 only):**
@@ -240,6 +242,7 @@ Send the admin:
 - A link to this repository, or just the script path: `scripts/set-managed-identity-defender-permissions.ps1`.
 - The list of permissions to grant (these are also the script's defaults):
   - `AdvancedHunting.Read.All` (Microsoft Threat Protection)
+  - `AdvancedQuery.Read.All` (Microsoft Threat Protection) — required by `/api/advancedqueries/run` independently of `AdvancedHunting.Read.All`
   - `Machine.Read.All` (WindowsDefenderATP)
   - `Software.Read.All` (WindowsDefenderATP)
   - `Vulnerability.Read.All` (WindowsDefenderATP)
@@ -279,6 +282,36 @@ Then watch results in the portal: **Function App → Functions → \<name\> → 
 > **Why not `runOnStartup`?** The Functions runtime fires `runOnStartup=true` timers on *every* host cold-start (Consumption plans cold-start frequently), and with `useMonitor` defaults you can also get a separate catch-up run on startup. That means duplicate rows in your `_CL` tables and extra Defender API traffic. Use this script for ad-hoc testing instead.
 
 > **Portal Test/Run on GCC High.** The deploy script automatically adds the correct portal origin to CORS (`portal.azure.com` for commercial, `portal.azure.us` for `AzureUSGovernment`), so the portal **Code + Test → Test/Run** button also works on Gov clouds without further configuration.
+
+### 4c) Health check (5-second sanity probe)
+
+The deployment includes an HTTP-triggered `HealthCheck` function that probes each Defender API surface your timers will use and returns a JSON matrix of `{host, status, required_roles, hint}`. Use it instead of waiting 30 minutes to find out a role or host is wrong.
+
+```powershell
+# 1) Get the default function key (after deploy.ps1 has finished restarting the app -- 60-120s):
+$key = az functionapp keys list `
+  --name <function-app-name> `
+  --resource-group <deployment-resource-group> `
+  --query "functionKeys.default" -o tsv
+
+# 2) Baseline probe -- Advanced Hunting POST + Security Center REST GET:
+curl "https://<function-app-name>.azurewebsites.net/api/healthcheck?code=$key"
+
+# 3) Full probe -- also hits every configured dataset endpoint with $top=1:
+curl "https://<function-app-name>.azurewebsites.net/api/healthcheck?code=$key&full=1"
+```
+
+> **GCC High:** replace `.azurewebsites.net` with `.azurewebsites.us` and check `defaultHostName` in the portal if unsure.
+
+Interpretation:
+
+| Result | Meaning | Fix |
+|---|---|---|
+| `summary.ok = true` | All probed surfaces returned 2xx with the managed identity's token. The next scheduled timer tick will succeed. | None — done. |
+| `status: 403` on `advanced_hunting` | Missing `AdvancedQuery.Read.All` and/or `AdvancedHunting.Read.All` on Microsoft Threat Protection SP. | Re-run `set-managed-identity-defender-permissions.ps1 -GrantAdminConsent` then `az functionapp restart` (or just rerun `deploy.ps1`). |
+| `status: 403` on `security_center_rest` | Missing one of `Machine.Read.All` / `Vulnerability.Read.All` / etc. on WindowsDefenderATP SP. | Same as above. The `required_roles` field on each result row tells you which role the failing endpoint needs. |
+| `status: 404` or DNS error | Wrong base URL for this cloud. | Check `summary.hunting_base` and `summary.security_center_base`. On Gov they MUST be `api-gov.security.microsoft.us` and `api-gov.securitycenter.microsoft.us` respectively — **different hosts**. The Bicep auto-selects these; redeploy or set `Defender__ApiBaseUrl` / `Defender__SecurityCenterApiBaseUrl` manually. |
+| `status: null`, error `TOKEN` | Managed identity could not get a token for that audience. | Verify system-assigned identity is enabled on the Function App and the host is reachable from the worker. |
 
 ### 5) Confirm deployed resources
 

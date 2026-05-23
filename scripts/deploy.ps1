@@ -19,7 +19,18 @@ param(
     [string]$TenantId = "",
     [string]$SmokeModule = "",
 
-    [switch]$SkipLogin
+    [switch]$SkipLogin,
+
+    # By default the deploy script ends by granting Defender app roles to the Function App's
+    # managed identity and restarting the app so the new tokens are picked up immediately.
+    # Set -SkipPermissions to opt out (e.g. when the identity has already been granted via
+    # a separate change-management process).
+    [switch]$SkipPermissions,
+
+    # Skip the final functionapp restart. Restart is normally REQUIRED after granting new
+    # Defender roles because the worker caches access tokens for ~1h; without a restart you
+    # will keep seeing 403 even though the role assignment now exists.
+    [switch]$SkipRestart
 )
 
 $ErrorActionPreference = "Stop"
@@ -1079,13 +1090,99 @@ Start-Stage -Name "Function app state"
 Write-Host "Function App '$resolvedFunctionAppName' is left running after deployment."
 Write-Host "If needed, you can restart it with: az functionapp restart --name $resolvedFunctionAppName --resource-group $ResourceGroupName"
 
+$subscriptionId = $accountInfo.id
+$permissionsScriptPath = Join-Path $PSScriptRoot "set-managed-identity-defender-permissions.ps1"
+
+if ($SkipPermissions) {
+    Start-Stage -Name "Defender permissions"
+    Write-Host "-SkipPermissions specified. Skipping managed-identity Defender role grant."
+    Write-Host "Run manually when ready:"
+    Write-Host "  $permissionsScriptPath -FunctionAppName $resolvedFunctionAppName -FunctionAppResourceGroup $ResourceGroupName -SubscriptionId $subscriptionId -CloudName $effectiveCloud -GrantAdminConsent"
+}
+else {
+    Start-Stage -Name "Defender permissions"
+    if (-not (Test-Path $permissionsScriptPath)) {
+        Write-Warning "Permissions script not found at '$permissionsScriptPath'. Skipping role grant."
+    }
+    else {
+        Write-Host "Granting Defender app roles to the Function App's managed identity (requires Global Admin or Privileged Role Administrator + Cloud App Administrator)..."
+        try {
+            & $permissionsScriptPath `
+                -FunctionAppName $resolvedFunctionAppName `
+                -FunctionAppResourceGroup $ResourceGroupName `
+                -SubscriptionId $subscriptionId `
+                -CloudName $effectiveCloud `
+                -GrantAdminConsent `
+                -SkipLogin
+            if ($LASTEXITCODE -ne 0) {
+                throw "Permissions script exited with code $LASTEXITCODE."
+            }
+        }
+        catch {
+            Write-Warning "Defender permissions grant failed: $($_.Exception.Message)"
+            Write-Warning "Deployment continues. Re-run manually:"
+            Write-Warning "  $permissionsScriptPath -FunctionAppName $resolvedFunctionAppName -FunctionAppResourceGroup $ResourceGroupName -SubscriptionId $subscriptionId -CloudName $effectiveCloud -GrantAdminConsent"
+        }
+    }
+}
+
+if ($SkipRestart) {
+    Start-Stage -Name "Function app restart"
+    Write-Host "-SkipRestart specified. Skipping post-permissions restart."
+    Write-Host "If you granted new roles, restart manually so cached tokens are flushed:"
+    Write-Host "  az functionapp restart --name $resolvedFunctionAppName --resource-group $ResourceGroupName"
+}
+else {
+    Start-Stage -Name "Function app restart"
+    Write-Host "Restarting Function App so the worker picks up newly-granted Defender app roles..."
+    try {
+        Invoke-AzCli -Args @(
+            "functionapp", "restart",
+            "--name", $resolvedFunctionAppName,
+            "--resource-group", $ResourceGroupName,
+            "--only-show-errors",
+            "-o", "none"
+        ) | Out-Null
+        Write-Host "Restart issued. The host typically takes 30-90 seconds to come back online."
+    }
+    catch {
+        Write-Warning "Restart failed: $($_.Exception.Message). Restart manually before relying on healthcheck output."
+    }
+}
+
+Start-Stage -Name "Health check"
+$hostName = (Invoke-AzCli -Args @(
+    "functionapp", "show",
+    "--name", $resolvedFunctionAppName,
+    "--resource-group", $ResourceGroupName,
+    "--query", "defaultHostName",
+    "-o", "tsv",
+    "--only-show-errors"
+)).Trim()
+if ([string]::IsNullOrWhiteSpace($hostName)) {
+    Write-Warning "Could not resolve Function App hostname for the health check URL."
+}
+else {
+    Write-Host "Run this to verify Defender connectivity in seconds (replaces the 30-minute wait for a scheduled tick):"
+    Write-Host "  # 1) Get a function key (after the app finishes restarting -- may take 60-120s):"
+    Write-Host "  az functionapp keys list --name $resolvedFunctionAppName --resource-group $ResourceGroupName --query 'functionKeys.default' -o tsv"
+    Write-Host "  # 2) Hit the healthcheck endpoint:"
+    Write-Host "  curl 'https://$hostName/api/healthcheck?code=<function-key>'"
+    Write-Host "  curl 'https://$hostName/api/healthcheck?code=<function-key>&full=1'  # also probes every dataset endpoint"
+    Write-Host ""
+    Write-Host "Interpretation:"
+    Write-Host "  200 ok=true => everything works; the timers will succeed on their next scheduled tick."
+    Write-Host "  403         => required app role missing on that surface. See 'required_roles' in the JSON."
+    Write-Host "  404/DNS     => wrong base URL for this cloud (Defender__ApiBaseUrl or Defender__SecurityCenterApiBaseUrl)."
+    Write-Host "                 On Gov: advanced hunting must be api-gov.security.microsoft.us;"
+    Write-Host "                         REST must be api-gov.securitycenter.microsoft.us (different hosts)."
+}
+
 Start-Stage -Name "Completed"
 Write-Host "Deployment completed successfully."
 Write-Host ""
 Write-Host "Test now checklist:"
-Write-Host "  1) Grant Defender permissions:"
-$subscriptionId = $accountInfo.id
-Write-Host "     ./scripts/set-managed-identity-defender-permissions.ps1 -FunctionAppName $resolvedFunctionAppName -FunctionAppResourceGroup $ResourceGroupName -SubscriptionId $subscriptionId -GrantAdminConsent"
+Write-Host "  1) Permissions and restart were applied automatically above (re-run if -SkipPermissions / -SkipRestart was used)."
 Write-Host "  2) Confirm function discovery:"
 Write-Host "     az functionapp function list --name $resolvedFunctionAppName --resource-group $ResourceGroupName -o table"
 Write-Host "  3) Confirm dataset rule app settings:"

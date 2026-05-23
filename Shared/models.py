@@ -52,6 +52,17 @@ class AppSettings:
     collector_version: str
     logs_ingestion_endpoint: str
     logs_ingestion_rule_id: str
+    # MTP/Defender XDR endpoint used by Advanced Hunting (POST /api/advancedqueries/run).
+    # Audience: Microsoft Threat Protection.
     defender_api_base_url: str = "https://api.security.microsoft.com"
+    # Defender for Endpoint (WindowsDefenderATP) REST endpoint used by DefenderRestClient
+    # (GET /api/<Endpoint>). On Gov this is a DIFFERENT host than Advanced Hunting:
+    # api-gov.securitycenter.microsoft.us vs api-gov.security.microsoft.us. Falls back
+    # to defender_api_base_url when unset (correct for commercial).
+    defender_security_center_api_base_url: str | None = None
     managed_identity_client_id: str | None = None
     nist_api_key: str | None = None
+
+    @property
+    def resolved_security_center_api_base_url(self) -> str:
+        return self.defender_security_center_api_base_url or self.defender_api_base_url

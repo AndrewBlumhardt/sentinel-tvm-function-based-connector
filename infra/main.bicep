@@ -83,6 +83,10 @@ var commonAppSettings = [
     value: resolvedDefenderApiBaseUrl
   }
   {
+    name: 'Defender__SecurityCenterApiBaseUrl'
+    value: resolvedDefenderSecurityCenterApiBaseUrl
+  }
+  {
     name: 'ManagedIdentity__ClientId'
     value: ''
   }
@@ -123,8 +127,13 @@ param dataCollectionRuleName string = ''
 @description('Override for the Microsoft Defender API base URL. Leave empty to auto-select based on the deployment cloud: https://api.security.microsoft.com for Azure commercial, https://api-gov.security.microsoft.us for Azure Government. Set explicitly only when targeting a sovereign cloud the auto-mapping does not yet cover, or for testing.')
 param defenderApiBaseUrl string = ''
 
+@description('Override for the Defender for Endpoint (WindowsDefenderATP) REST API base URL used by GET /api/<Endpoint> calls. Leave empty to auto-select: https://api.security.microsoft.com on commercial, https://api-gov.securitycenter.microsoft.us on Azure Government (NOTE: this is a different host than Advanced Hunting on Gov).')
+param defenderSecurityCenterApiBaseUrl string = ''
+
 var autoDetectedDefenderApiBaseUrl = environment().name == 'AzureUSGovernment' ? 'https://api-gov.security.microsoft.us' : 'https://api.security.microsoft.com'
 var resolvedDefenderApiBaseUrl = empty(defenderApiBaseUrl) ? autoDetectedDefenderApiBaseUrl : defenderApiBaseUrl
+var autoDetectedDefenderSecurityCenterApiBaseUrl = environment().name == 'AzureUSGovernment' ? 'https://api-gov.securitycenter.microsoft.us' : 'https://api.security.microsoft.com'
+var resolvedDefenderSecurityCenterApiBaseUrl = empty(defenderSecurityCenterApiBaseUrl) ? autoDetectedDefenderSecurityCenterApiBaseUrl : defenderSecurityCenterApiBaseUrl
 
 resource workspace 'Microsoft.OperationalInsights/workspaces@2023-09-01' existing = {
   scope: resourceGroup(workspaceResourceGroupName)
