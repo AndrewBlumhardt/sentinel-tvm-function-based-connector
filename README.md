@@ -425,6 +425,8 @@ Why each should stay in root:
 
 ## Troubleshooting
 
+> **First place to look after any deploy.** Open the Function App in the portal → **Overview** → click into any function → **Invocations** (or **Monitor**) tab. Errors here are expected until `scripts/set-managed-identity-defender-permissions.ps1` has been run *and* the Function App has been restarted — every timer fire will 401/403 against the Defender API until then. Once permissions are in place, invocations should flip to **Success** on the next scheduled run (within ~5 min for the fastest datasets, up to 1 hour for the slowest). If they're still failing after that, jump to the status-code table below.
+
 1. Cloud/context mismatch.
 
 ```powershell
