@@ -44,8 +44,11 @@ Use this exact order.
 1. Clone the repo locally and open PowerShell in the repo folder.
 2. Install prerequisites (Azure CLI + Python 3.11), sign in, verify cloud/subscription.
 3. Run `scripts/deploy.ps1` — deploys infrastructure and publishes function code.
-4. Run `scripts/set-managed-identity-defender-permissions.ps1`.
-5. Run post-deployment validation.
+4. Run `scripts/set-managed-identity-defender-permissions.ps1` — grants the managed identity the Defender app roles.
+5. Run `scripts/invoke-functions-once.ps1` — fires every timer function once to verify the pipeline end to end without waiting up to an hour for the slowest scheduled tick.
+6. Run post-deployment validation.
+
+> **Why the order matters.** Step 3 stands up infrastructure and starts the timer functions, but the managed identity has no Defender API permissions yet — so every scheduled tick between step 3 and step 4 will fail with `401`/`403`. Step 4 grants those app roles. Step 5 then triggers a one-shot run so you can confirm success on the **Invocations** tab immediately, instead of waiting for the next NCRONTAB tick (5 minutes to 1 hour depending on dataset) and worrying whether the "failed" history you see is leftover from before step 4 or a real new problem.
 
 ### 1) Clone locally and open PowerShell
 
