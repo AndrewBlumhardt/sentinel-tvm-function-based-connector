@@ -31,7 +31,7 @@ class ConfigLoader:
         datasets: list[DatasetConfig] = []
         for item in raw_config.get("datasets", []):
             name = item["name"]
-            enabled = self._get_bool_override(name, item.get("enabled", True))
+            enabled = bool(item.get("enabled", True))
             batch_size = self._get_int_override(name, "batchSize", item.get("batchSize", 500))
             page_size = self._get_int_override(name, "pageSize", item.get("pageSize", 10000))
             request_delay_ms = self._get_int_override(name, "requestDelayMs", item.get("requestDelayMs", 0))
@@ -74,8 +74,6 @@ class ConfigLoader:
         return f"Dataset__{dataset_name}__{property_name}"
 
     def _get_new_env_name(self, dataset_name: str, property_name: str) -> str | None:
-        if property_name == "enabled":
-            return f"Enabled_{dataset_name}"
         if property_name == "dcrRuleId":
             return f"DcrRuleId_{dataset_name}"
         return None
@@ -90,12 +88,6 @@ class ConfigLoader:
 
     def _get_text_override(self, dataset_name: str, property_name: str, fallback: str | None) -> str | None:
         return self._get_env_override(dataset_name, property_name, fallback)
-
-    def _get_bool_override(self, dataset_name: str, fallback: bool) -> bool:
-        value = self._get_env_override(dataset_name, "enabled")
-        if value is None:
-            return fallback
-        return value.strip().lower() in {"1", "true", "yes", "on"}
 
     def _get_int_override(self, dataset_name: str, property_name: str, fallback: int) -> int:
         value = self._get_env_override(dataset_name, property_name)

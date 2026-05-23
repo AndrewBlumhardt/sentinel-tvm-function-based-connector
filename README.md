@@ -111,17 +111,32 @@ By default, `deploy.ps1` leaves the Function App running after deployment.
 > - **Tables won't appear in the Logs query tool until they receive data** — the schema browser hides empty tables. Toggle **Hide empty tables** off in the table tree filter to see them before the first ingestion.
 > - The **Tables blade** in the workspace (`Log Analytics workspace → Tables`) lists them immediately after deploy, even with zero rows. Use that view to confirm table creation.
 > - If you want to drop a table you no longer need, do it manually from `Log Analytics workspace → Tables → ... → Delete`. The next Bicep deploy will recreate any table whose dataset is still in `Functions/datasets.json` — to keep it gone, also remove that dataset entry (or set its `enabled` flag to `false`).
-> - **Datasets ship enabled by default.** To turn a single dataset off without redeploying Bicep, set the app setting `Enabled_<DatasetName>=false` and restart the Function App. To turn one back on, set it to `true` (or remove the override). Example:
+> - **Datasets ship enabled by default.** To turn a single dataset off without redeploying, **disable the individual function**. Two options:
+>   - **Portal (recommended):** Function App → **Functions** → select the function → **Disable**. Click **Enable** to turn it back on.
+>   - **CLI:** set the app setting `AzureWebJobs.<FunctionName>.Disabled=true` and restart the Function App. Example:
 >
->   ```powershell
->   az functionapp config appsettings set `
->     --name <function-app-name> `
->     --resource-group <resource-group> `
->     --settings Enabled_DeviceTvmSoftwareInventory=false
->   az functionapp restart --name <function-app-name> --resource-group <resource-group>
->   ```
+>     ```powershell
+>     az functionapp config appsettings set `
+>       --name <function-app-name> `
+>       --resource-group <resource-group> `
+>       --settings AzureWebJobs.DeviceTvmSoftwareInventoryTimer.Disabled=true
+>     az functionapp restart --name <function-app-name> --resource-group <resource-group>
+>     ```
 >
->   Disabling a dataset stops its timer-triggered function from running but does **not** remove the table or DCR mapping.
+>   Disabling a function stops its timer from firing but does **not** remove the underlying table or DCR mapping.
+
+#### GCC High / Azure Government availability
+
+The Defender for Endpoint REST APIs are generally available in GCC High, but a subset of capabilities under **Microsoft Defender Vulnerability Management (MDVM) premium** are not exposed on Government clouds (see [Defender for Endpoint for US Government customers](https://learn.microsoft.com/en-us/defender-endpoint/gov) — "Microsoft Defender Vulnerability Management premium capabilities" is listed in the feature-parity gaps).
+
+Observed on GCC High during testing:
+
+| Dataset | Status on GCC High | Notes |
+| --- | --- | --- |
+| `ApiBrowserExtensionsInventory` | 404 from `/api/BrowserExtensionsInventories` | MDVM premium — browser extensions assessment not surfaced on Gov. |
+| `ApiBrowserExtensionsPermissions` | 404 from `/api/BrowserExtensionsPermissions` | Same as above. |
+
+If you hit a `404 Not Found` on a specific `/api/*` endpoint from a GCC High tenant (and the Defender base URL is otherwise correct), the most likely cause is that the capability isn't available in your cloud. Disable that individual function using the steps above and watch the [Defender for Endpoint Gov parity page](https://learn.microsoft.com/en-us/defender-endpoint/gov) for updates. All other datasets in `Functions/datasets.json` are expected to work on Gov.
 
 #### Cloud selection and Defender endpoint
 
@@ -377,8 +392,8 @@ Key app settings:
 - `DatasetConfigPath`
 - `LogsIngestion__Endpoint`
 - `DcrRuleId_<DatasetName>`
-- `Enabled_<DatasetName>`
 - `Schedule_<DatasetName>`
+- `AzureWebJobs.<FunctionName>.Disabled` — set to `true` to disable an individual timer-triggered function (or use the **Disable** button in the portal’s **Functions** blade).
 
 Timer format: `second minute hour day month day-of-week`
 
