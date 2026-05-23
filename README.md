@@ -93,6 +93,37 @@ Smoke mode sets `FUNCTIONS_SMOKE_MODULE` so only that module is registered at st
 
 By default, `deploy.ps1` leaves the Function App running after deployment.
 
+#### Cloud selection and Defender endpoint
+
+`deploy.ps1` and the Bicep template auto-detect the deployment cloud. The Microsoft Defender API base URL is derived from `environment().name` at deploy time:
+
+| Cloud | Default `Defender__ApiBaseUrl` |
+| --- | --- |
+| `AzureCloud` (commercial) | `https://api.security.microsoft.com` |
+| `AzureUSGovernment` (GCC High) | `https://api-gov.security.microsoft.us` |
+
+You only need to override this when the auto-mapping doesn't cover your environment (a sovereign cloud not in the table, a private preview endpoint, or local testing). Pass the override through `deploy.ps1`:
+
+```powershell
+./scripts/deploy.ps1 `
+  -ResourceGroupName <deployment-resource-group> `
+  -WorkspaceName <sentinel-workspace-name> `
+  -CloudName AzureUSGovernment `
+  -DefenderApiBaseUrl https://api-gov.security.microsoft.us
+```
+
+Or set it directly on an already-deployed app and restart:
+
+```powershell
+az functionapp config appsettings set `
+  --name <function-app-name> `
+  --resource-group <resource-group> `
+  --settings Defender__ApiBaseUrl=https://api-gov.security.microsoft.us
+az functionapp restart --name <function-app-name> --resource-group <resource-group>
+```
+
+The Python clients use this value for both the request host and the OAuth token scope (`<base>/.default`), so changing it switches both in lock-step.
+
 `deploy.ps1` prints the resolved Function App name during preflight. Use that exact value in follow-on commands.
 
 When ready to test:

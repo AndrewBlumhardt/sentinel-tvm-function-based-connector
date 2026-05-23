@@ -80,7 +80,7 @@ var commonAppSettings = [
   }
   {
     name: 'Defender__ApiBaseUrl'
-    value: environment().name == 'AzureUSGovernment' ? 'https://api-gov.security.microsoft.us' : 'https://api.security.microsoft.com'
+    value: resolvedDefenderApiBaseUrl
   }
   {
     name: 'ManagedIdentity__ClientId'
@@ -119,6 +119,12 @@ param dataCollectionEndpointName string = ''
 
 @description('Name of the Data Collection Rule. Leave empty to use the default convention.')
 param dataCollectionRuleName string = ''
+
+@description('Override for the Microsoft Defender API base URL. Leave empty to auto-select based on the deployment cloud: https://api.security.microsoft.com for Azure commercial, https://api-gov.security.microsoft.us for Azure Government. Set explicitly only when targeting a sovereign cloud the auto-mapping does not yet cover, or for testing.')
+param defenderApiBaseUrl string = ''
+
+var autoDetectedDefenderApiBaseUrl = environment().name == 'AzureUSGovernment' ? 'https://api-gov.security.microsoft.us' : 'https://api.security.microsoft.com'
+var resolvedDefenderApiBaseUrl = empty(defenderApiBaseUrl) ? autoDetectedDefenderApiBaseUrl : defenderApiBaseUrl
 
 resource workspace 'Microsoft.OperationalInsights/workspaces@2023-09-01' existing = {
   scope: resourceGroup(workspaceResourceGroupName)

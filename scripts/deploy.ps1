@@ -13,6 +13,8 @@ param(
 
     [string]$CloudName = "",
 
+    [string]$DefenderApiBaseUrl = "",
+
     [string]$SubscriptionId = "",
     [string]$TenantId = "",
     [string]$SmokeModule = "",
@@ -467,6 +469,10 @@ $deploymentArgs = @(
 
 if (-not [string]::IsNullOrWhiteSpace($Location)) {
     $deploymentArgs += "location=$Location"
+}
+
+if (-not [string]::IsNullOrWhiteSpace($DefenderApiBaseUrl)) {
+    $deploymentArgs += "defenderApiBaseUrl=$DefenderApiBaseUrl"
 }
 
 Start-Stage -Name "ARM/Bicep deployment"
