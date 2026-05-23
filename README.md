@@ -472,6 +472,8 @@ Why each should stay in root:
 
 > **First place to look after any deploy.** Open the Function App in the portal → **Overview** → click into any function → **Invocations** (or **Monitor**) tab. Errors here are expected until `scripts/set-managed-identity-defender-permissions.ps1` has been run *and* the Function App has been restarted — every timer fire will 401/403 against the Defender API until then. Once permissions are in place, invocations should flip to **Success** on the next scheduled run (within ~5 min for the fastest datasets, up to 1 hour for the slowest). If they're still failing after that, jump to the status-code table below.
 
+> **Expected deploy duration: ~10 minutes.** A clean `scripts/deploy.ps1` run typically completes in under 10 minutes end-to-end (infra deploy, code publish, RBAC, restart, verification). If it runs **significantly longer than 10 minutes**, something is likely stuck — check the CLI output for the last stage emitted; common culprits are ARM/Bicep provisioning waiting on a soft-deleted resource, storage SAS retry loops (PIM not active), or Functions runtime warm-up. If it finishes **significantly faster than ~5 minutes**, a stage probably exited early without applying changes; scroll back through the CLI output looking for `WARNING`/`ERROR` lines or skipped stages. The script emits clear per-stage banners (`==> Stage: ...`) plus warnings inline — read the CLI output as you go rather than waiting for the final summary.
+
 1. Cloud/context mismatch.
 
 ```powershell
