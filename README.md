@@ -250,6 +250,8 @@ The admin then runs the same command shown in Path A. The script is idempotent â
 
 ### 4b) Trigger a one-shot test run (optional but recommended)
 
+> **No functions run at deployment time.** By design, `runOnStartup` is disabled (see callout below). After a fresh `deploy.ps1`, the Function App will sit idle until the **next scheduled NCRONTAB tick** for each timer â€” or until you trigger a run manually with the script in this section. If you check the **Invocations** tab right after deploy and see zero rows, that is normal.
+
 After the permissions script completes, you have two options to verify end to end:
 
 - **Just wait.** Most datasets run on a 30-minute (or shorter) interval, so within ~30 minutes of granting permissions and restarting the Function App, you should see successful invocations on the **Monitor** / **Invocations** tab. The slowest datasets can take up to 1 hour.
