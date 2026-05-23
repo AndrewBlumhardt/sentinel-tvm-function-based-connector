@@ -103,10 +103,10 @@ else {
             foreach ($b in $bindings) {
                 if ($b.type -eq "timerTrigger") { $hasTimer = $true; break }
             }
-            # Python v2 apps frequently report empty/missing bindings in this API. If the
-            # bindings shape isn't useful, fall back to a name-suffix heuristic — all
-            # blueprints in this repo use the convention "<Dataset>Timer".
-            if (-not $hasTimer -and $bindings.Count -eq 0 -and $shortName -match 'Timer$') {
+            # Python v2 apps frequently report empty/missing bindings in this API.
+            # This repo is timer-only (every dataset blueprint is a timer trigger),
+            # so when bindings are missing we treat the function as a timer candidate.
+            if (-not $hasTimer -and $bindings.Count -eq 0) {
                 $hasTimer = $true
             }
             if ($hasTimer) {

@@ -119,7 +119,7 @@ By default, `deploy.ps1` leaves the Function App running after deployment.
 >     az functionapp config appsettings set `
 >       --name <function-app-name> `
 >       --resource-group <resource-group> `
->       --settings AzureWebJobs.DeviceTvmSoftwareInventoryTimer.Disabled=true
+>       --settings AzureWebJobs.DeviceTvmSoftwareInventory.Disabled=true
 >     az functionapp restart --name <function-app-name> --resource-group <resource-group>
 >     ```
 >

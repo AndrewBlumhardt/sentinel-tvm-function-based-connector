@@ -4,5 +4,5 @@ from Functions.common import build_timer_blueprint
 blueprint = build_timer_blueprint(
     dataset_name="ApiSoftwareInventoryByMachine",
     schedule_setting="Schedule_ApiSoftwareInventoryByMachine",
-    function_name="ApiSoftwareInventoryByMachineTimer",
+    function_name="ApiSoftwareInventoryByMachine",
 )
