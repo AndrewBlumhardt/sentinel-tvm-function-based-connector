@@ -93,13 +93,38 @@ else {
         }
     }
 
-    if ($functions.Count -eq 0) {
-        # Fall back to enumerating from the repo. This connector uses the Python v2
-        # programming model (no per-function function.json), so look in two places:
-        #   1) Functions\*.py with build_timer_blueprint(function_name="...")
-        #   2) Any <dir>\function.json (classic v1 model, just in case)
+    if ($functions.Count -gt 0) {
+        Write-Host "Management plane returned $($functions.Count) function(s). Parsing bindings..."
+        foreach ($f in $functions) {
+            $shortName = ($f.name -split "/")[-1]
+            $bindings = @()
+            if ($f.config -and $f.config.bindings) { $bindings = @($f.config.bindings) }
+            $hasTimer = $false
+            foreach ($b in $bindings) {
+                if ($b.type -eq "timerTrigger") { $hasTimer = $true; break }
+            }
+            # Python v2 apps frequently report empty/missing bindings in this API. If the
+            # bindings shape isn't useful, fall back to a name-suffix heuristic — all
+            # blueprints in this repo use the convention "<Dataset>Timer".
+            if (-not $hasTimer -and $bindings.Count -eq 0 -and $shortName -match 'Timer$') {
+                $hasTimer = $true
+            }
+            if ($hasTimer) {
+                $targets += $shortName
+            }
+            else {
+                Write-Host "  Skipping '$shortName' (no timerTrigger binding detected)."
+            }
+        }
+    }
+
+    if ($targets.Count -eq 0) {
+        # Either the management plane returned nothing, or it returned functions but we
+        # couldn't identify any as timer-triggered. Either way, fall back to enumerating
+        # from the repo source. This connector uses the Python v2 programming model
+        # (no per-function function.json) with build_timer_blueprint(function_name="...").
         $repoRoot = Split-Path -Parent $PSScriptRoot
-        Write-Warning "Management plane returned 0 functions. Falling back to repo source under $repoRoot."
+        Write-Warning "Could not derive a timer function list from the management plane. Falling back to repo source under $repoRoot."
 
         $pyFiles = Get-ChildItem -Path (Join-Path $repoRoot 'Functions') -Filter '*.py' -ErrorAction SilentlyContinue |
             Where-Object { $_.Name -notin @('__init__.py', 'common.py') }
@@ -112,6 +137,7 @@ else {
         }
 
         if ($targets.Count -eq 0) {
+            # Classic v1 fallback
             $localFunctions = Get-ChildItem -Path $repoRoot -Recurse -Filter "function.json" -ErrorAction SilentlyContinue |
                 Where-Object { $_.FullName -notmatch '\\.venv\\|\\node_modules\\|\\.python_packages\\' }
             foreach ($lf in $localFunctions) {
@@ -128,24 +154,10 @@ else {
         }
 
         if ($targets.Count -eq 0) {
-            throw "No functions returned after $($listAttempts * $listDelaySeconds) seconds and no function names could be parsed from the repo. The host may still be loading the package (check WEBSITE_RUN_FROM_PACKAGE), or you may lack 'Microsoft.Web/sites/functions/read' on the app. Try: az functionapp function list --name $FunctionAppName --resource-group $ResourceGroupName -o table"
+            throw "Could not determine the function list. The host may still be loading the package (check WEBSITE_RUN_FROM_PACKAGE), or you may lack 'Microsoft.Web/sites/functions/read' on the app. Try: az functionapp function list --name $FunctionAppName --resource-group $ResourceGroupName -o table"
         }
 
         Write-Host "Discovered $($targets.Count) function name(s) from repo source."
-    }
-    else {
-        foreach ($f in $functions) {
-            $bindings = $f.config.bindings
-            $hasTimer = $false
-            foreach ($b in $bindings) {
-                if ($b.type -eq "timerTrigger") { $hasTimer = $true; break }
-            }
-            if ($hasTimer) {
-                # az returns name as "<app>/<func>"; take the function part
-                $shortName = ($f.name -split "/")[-1]
-                $targets += $shortName
-            }
-        }
     }
 }
 
