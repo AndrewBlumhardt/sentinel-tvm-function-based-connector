@@ -97,6 +97,10 @@ else {
         Write-Host "Management plane returned $($functions.Count) function(s). Parsing bindings..."
         foreach ($f in $functions) {
             $shortName = ($f.name -split "/")[-1]
+            if ([string]::IsNullOrWhiteSpace($shortName)) {
+                Write-Host "  Skipping management-plane entry with empty name (host still indexing)."
+                continue
+            }
             $bindings = @()
             if ($f.config -and $f.config.bindings) { $bindings = @($f.config.bindings) }
             $hasTimer = $false
@@ -115,6 +119,14 @@ else {
             else {
                 Write-Host "  Skipping '$shortName' (no timerTrigger binding detected)."
             }
+        }
+
+        # Degenerate response: host returned a single, near-empty entry while it was
+        # still warming. Trust the repo source instead so we don't POST to /admin/functions/
+        # with a blank name (which 404s).
+        if ($targets.Count -le 1 -and $functions.Count -le 1) {
+            Write-Warning "Management plane response looks incomplete (only $($functions.Count) function returned). Falling back to repo source enumeration."
+            $targets = @()
         }
     }
 
