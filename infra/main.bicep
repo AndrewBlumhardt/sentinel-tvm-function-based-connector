@@ -79,6 +79,10 @@ var commonAppSettings = [
     value: dataCollectionEndpoint.properties.logsIngestion.endpoint
   }
   {
+    name: 'Defender__ApiBaseUrl'
+    value: environment().name == 'AzureUSGovernment' ? 'https://api-gov.security.microsoft.us' : 'https://api.security.microsoft.com'
+  }
+  {
     name: 'ManagedIdentity__ClientId'
     value: ''
   }

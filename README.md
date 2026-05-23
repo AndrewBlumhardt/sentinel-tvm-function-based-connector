@@ -392,6 +392,17 @@ az functionapp config appsettings list --name <function-app-name> --resource-gro
 az role assignment list --assignee <function-mi-object-id> --scope /subscriptions/<sub-id>/resourceGroups/<deployment-rg> --query "[?roleDefinitionName=='Monitoring Metrics Publisher']" -o table
 ```
 
+5. `HTTPError` raised from `defender_rest_client.py` or `defender_advanced_hunting_client.py`.
+
+The clients now include the HTTP status code, request URL, and response body (truncated to 2 KB) in the raised error, so the *real* failure shows up in the Application Insights / Log stream message. Common causes:
+
+| Status | Meaning | Fix |
+| --- | --- | --- |
+| `401 Unauthorized` | Missing or invalid token. | Confirm the system-assigned managed identity is enabled and `ManagedIdentity__ClientId` is unset (or matches a real UAMI). Restart the Function App. |
+| `403 Forbidden` | Admin consent for the Defender app roles has not been granted. | Run `scripts/set-managed-identity-defender-permissions.ps1 -GrantAdminConsent` as a user with `Privileged Role Administrator` or `Global Administrator`, then **restart the Function App**. |
+| `404 Not Found` / DNS error on `api.security.microsoft.com` from a GCC High tenant | Hitting the commercial Defender endpoint from Azure Government. | Verify the app setting `Defender__ApiBaseUrl` — it should be `https://api-gov.security.microsoft.us` in `AzureUSGovernment`. The Bicep selects this automatically based on `environment().name`; if it's wrong, redeploy or set it manually: `az functionapp config appsettings set --settings Defender__ApiBaseUrl=https://api-gov.security.microsoft.us`. |
+| `429 Too Many Requests` | Defender API throttling. | The retry policy handles transient throttling; persistent 429s mean lowering `pageSize` for that dataset. |
+
 ### Post-deployment verification checklist
 
 Walk this list in the Azure portal after a deploy (or any permissions change) to confirm the pipeline is healthy end to end.

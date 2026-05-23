@@ -9,11 +9,11 @@ from Shared.retry_policy import RetryPolicy
 
 
 class DefenderAdvancedHuntingClient:
-    def __init__(self, token_provider, retry_policy: RetryPolicy) -> None:
+    def __init__(self, token_provider, retry_policy: RetryPolicy, base_url: str = "https://api.security.microsoft.com") -> None:
         self._token_provider = token_provider
         self._retry_policy = retry_policy
         self._session = requests.Session()
-        self._base_url = "https://api.security.microsoft.com"
+        self._base_url = base_url.rstrip("/")
 
     def iter_pages(self, dataset: DatasetConfig) -> Iterator[list[dict[str, object]]]:
         page_size = dataset.page_size
@@ -37,9 +37,10 @@ class DefenderAdvancedHuntingClient:
         return f"{base} | order by {order_by} | skip {skip} | take {take}"
 
     def _post_query(self, query: str) -> dict[str, object]:
-        token = self._token_provider.get_token("https://api.security.microsoft.com/.default")
+        token = self._token_provider.get_token(f"{self._base_url}/.default")
+        url = f"{self._base_url}/api/advancedqueries/run"
         response = self._session.post(
-            f"{self._base_url}/api/advancedqueries/run",
+            url,
             headers={
                 "Authorization": f"Bearer {token}",
                 "Content-Type": "application/json",
@@ -47,5 +48,10 @@ class DefenderAdvancedHuntingClient:
             json={"Query": query},
             timeout=300,
         )
-        response.raise_for_status()
+        if not response.ok:
+            body = (response.text or "")[:2000]
+            raise requests.HTTPError(
+                f"Defender Advanced Hunting POST failed: status={response.status_code} url={url} body={body}",
+                response=response,
+            )
         return response.json()

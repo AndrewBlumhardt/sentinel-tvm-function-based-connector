@@ -24,8 +24,8 @@ def get_dataset_runner() -> DatasetRunner:
     return DatasetRunner(
         registry=registry,
         app_settings=app_settings,
-        hunting_client=DefenderAdvancedHuntingClient(auth_provider, retry_policy),
-        rest_client=DefenderRestClient(auth_provider, retry_policy),
+        hunting_client=DefenderAdvancedHuntingClient(auth_provider, retry_policy, base_url=app_settings.defender_api_base_url),
+        rest_client=DefenderRestClient(auth_provider, retry_policy, base_url=app_settings.defender_api_base_url),
         nist_client=NistClient(app_settings.nist_api_key, retry_policy),
         ingestion_client=LogIngestionClient(app_settings.logs_ingestion_endpoint, auth_provider.credential),
     )

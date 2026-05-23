@@ -52,5 +52,6 @@ class AppSettings:
     collector_version: str
     logs_ingestion_endpoint: str
     logs_ingestion_rule_id: str
+    defender_api_base_url: str = "https://api.security.microsoft.com"
     managed_identity_client_id: str | None = None
     nist_api_key: str | None = None

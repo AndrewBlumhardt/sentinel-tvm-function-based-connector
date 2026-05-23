@@ -18,6 +18,7 @@ class ConfigLoader:
             collector_version=os.getenv("CollectorVersion", "0.1.0"),
             logs_ingestion_endpoint=os.getenv("LogsIngestion__Endpoint", ""),
             logs_ingestion_rule_id=os.getenv("LogsIngestion__RuleId", ""),
+            defender_api_base_url=(os.getenv("Defender__ApiBaseUrl") or "https://api.security.microsoft.com").rstrip("/"),
             managed_identity_client_id=os.getenv("ManagedIdentity__ClientId") or None,
             nist_api_key=os.getenv("Nist__ApiKey") or None,
         )
