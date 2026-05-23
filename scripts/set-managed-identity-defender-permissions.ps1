@@ -16,6 +16,7 @@ param(
 
     [string[]]$RequiredPermissions = @(
         "AdvancedHunting.Read.All",
+        "AdvancedQuery.Read.All",
         "Machine.Read.All",
         "Software.Read.All",
         "Vulnerability.Read.All",
@@ -74,10 +75,14 @@ function Resolve-PermissionRole {
     $aliases = @($Permission)
     switch ($Permission) {
         "AdvancedQuery.Read.All" {
-            $aliases += @("AdvancedHunting.Read.All", "AdvancedQuery.Read")
+            # Only fall back to the older short-form name on the same SP; do NOT
+            # substitute AdvancedHunting.Read.All — it is a distinct app role and
+            # the /api/advancedqueries/run endpoint requires AdvancedQuery.Read.All
+            # specifically. Both roles should be granted (see $RequiredPermissions).
+            $aliases += @("AdvancedQuery.Read")
         }
         "AdvancedHunting.Read.All" {
-            $aliases += @("AdvancedQuery.Read.All", "AdvancedQuery.Read")
+            $aliases += @("AdvancedHunting.Read")
         }
         default { }
     }
@@ -105,10 +110,10 @@ function Get-PermissionCandidates {
     $aliases = @($Permission)
     switch ($Permission) {
         "AdvancedQuery.Read.All" {
-            $aliases += @("AdvancedHunting.Read.All", "AdvancedQuery.Read")
+            $aliases += @("AdvancedQuery.Read")
         }
         "AdvancedHunting.Read.All" {
-            $aliases += @("AdvancedQuery.Read.All", "AdvancedQuery.Read")
+            $aliases += @("AdvancedHunting.Read")
         }
         default { }
     }

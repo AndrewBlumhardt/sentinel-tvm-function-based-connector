@@ -509,7 +509,7 @@ The clients now include the HTTP status code, request URL, and response body (tr
 | Status | Meaning | Fix |
 | --- | --- | --- |
 | `401 Unauthorized` | Missing or invalid token. | Confirm the system-assigned managed identity is enabled and `ManagedIdentity__ClientId` is unset (or matches a real UAMI). Restart the Function App. |
-| `403 Forbidden` | Admin consent for the Defender app roles has not been granted. | Run `scripts/set-managed-identity-defender-permissions.ps1 -GrantAdminConsent` as a user with `Privileged Role Administrator` or `Global Administrator`, then **restart the Function App**. |
+| `403 Forbidden` | Admin consent for the Defender app roles has not been granted. | Run `scripts/set-managed-identity-defender-permissions.ps1 -GrantAdminConsent` as a user with `Privileged Role Administrator` or `Global Administrator`, then **restart the Function App**. If the error body says `API required roles: AdvancedQuery.Read.All, application roles: AdvancedHunting.Read.All`, the managed identity has `AdvancedHunting.Read.All` but is missing the separate `AdvancedQuery.Read.All` role on the same Microsoft Threat Protection SP — re-run the permissions script (it now requests both) and restart. |
 | `404 Not Found` / DNS error on `api.security.microsoft.com` from a GCC High tenant | Hitting the commercial Defender endpoint from Azure Government. | Verify the app setting `Defender__ApiBaseUrl` — it should be `https://api-gov.security.microsoft.us` in `AzureUSGovernment`. The Bicep selects this automatically based on `environment().name`; if it's wrong, redeploy or set it manually: `az functionapp config appsettings set --settings Defender__ApiBaseUrl=https://api-gov.security.microsoft.us`. |
 | `429 Too Many Requests` | Defender API throttling. | The retry policy handles transient throttling; persistent 429s mean lowering `pageSize` for that dataset. |
 
@@ -527,7 +527,7 @@ Walk this list in the Azure portal after a deploy (or any permissions change) to
    - Go to **Microsoft Entra ID → Enterprise applications**.
    - **Uncheck the "Application type == Enterprise Applications" filter** (or change it to **All applications**). Managed identities are hidden by the default filter and won't appear otherwise.
    - Search for the Function App name, open its service principal, and click **Permissions**.
-   - Verify all six Defender app roles from Step 4 are listed (AdvancedHunting.Read.All, Machine.Read.All, Software.Read.All, Vulnerability.Read.All, SecurityRecommendation.Read.All, SecurityConfiguration.Read.All).
+   - Verify all seven Defender app roles from Step 4 are listed (AdvancedHunting.Read.All, AdvancedQuery.Read.All, Machine.Read.All, Software.Read.All, Vulnerability.Read.All, SecurityRecommendation.Read.All, SecurityConfiguration.Read.All).
 
 4. **Log Analytics workspace → Tables.** Open the Sentinel workspace and go to **Tables**. You should see all 25 `<DatasetName>_CL` custom tables. This is the authoritative view — tables show up here as soon as Bicep creates them, even before any data lands.
 
