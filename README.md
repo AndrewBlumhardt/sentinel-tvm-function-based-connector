@@ -250,7 +250,10 @@ The admin then runs the same command shown in Path A. The script is idempotent â
 
 ### 4b) Trigger a one-shot test run (optional but recommended)
 
-After the permissions script completes, you can either wait for the next NCRONTAB tick (up to 1 hour for the slowest datasets) or trigger every timer function once immediately to verify end to end:
+After the permissions script completes, you have two options to verify end to end:
+
+- **Just wait.** Most datasets run on a 30-minute (or shorter) interval, so within ~30 minutes of granting permissions and restarting the Function App, you should see successful invocations on the **Monitor** / **Invocations** tab. The slowest datasets can take up to 1 hour.
+- **Trigger every timer function immediately** to confirm without waiting:
 
 ```powershell
 ./scripts/invoke-functions-once.ps1 `
