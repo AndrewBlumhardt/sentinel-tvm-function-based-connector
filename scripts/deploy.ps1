@@ -1045,6 +1045,36 @@ finally {
     }
 }
 
+Start-Stage -Name "Portal CORS"
+# Allow the matching Azure portal origin so the Function App's "Test/Run" UI works.
+# Commercial -> portal.azure.com; US Gov -> portal.azure.us. CORS does not affect
+# authentication (function/master keys still gate execution) and is safe to add.
+$portalOrigin = if ($effectiveCloud -eq "AzureUSGovernment") { "https://portal.azure.us" } else { "https://portal.azure.com" }
+try {
+    $existingOrigins = (Invoke-AzCli -Args @(
+        "functionapp", "cors", "show",
+        "--name", $resolvedFunctionAppName,
+        "--resource-group", $ResourceGroupName,
+        "--query", "allowedOrigins",
+        "-o", "json"
+    )) | ConvertFrom-Json
+    if ($existingOrigins -contains $portalOrigin) {
+        Write-Host "CORS already allows '$portalOrigin'."
+    }
+    else {
+        Write-Host "Adding '$portalOrigin' to Function App CORS allowed origins..."
+        Invoke-AzCli -Args @(
+            "functionapp", "cors", "add",
+            "--name", $resolvedFunctionAppName,
+            "--resource-group", $ResourceGroupName,
+            "--allowed-origins", $portalOrigin
+        ) | Out-Null
+    }
+}
+catch {
+    Write-Warning "Failed to configure CORS for '$portalOrigin'. The portal Test/Run UI may not work, but scheduled timers are unaffected. Error: $($_.Exception.Message)"
+}
+
 Start-Stage -Name "Function app state"
 Write-Host "Function App '$resolvedFunctionAppName' is left running after deployment."
 Write-Host "If needed, you can restart it with: az functionapp restart --name $resolvedFunctionAppName --resource-group $ResourceGroupName"

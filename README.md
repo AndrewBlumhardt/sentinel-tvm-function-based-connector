@@ -230,6 +230,33 @@ Send the admin:
 
 The admin then runs the same command shown in Path A. The script is idempotent — re-running it only adds missing assignments. Once consent is granted, function runs will succeed on their next scheduled invocation (no redeploy required).
 
+### 4b) Trigger a one-shot test run (optional but recommended)
+
+After the permissions script completes, you can either wait for the next NCRONTAB tick (up to 1 hour for the slowest datasets) or trigger every timer function once immediately to verify end to end:
+
+```powershell
+./scripts/invoke-functions-once.ps1 `
+  -FunctionAppName <function-app-name> `
+  -ResourceGroupName <deployment-resource-group>
+```
+
+This POSTs to each function's `/admin/functions/<name>` endpoint with the master key — the same mechanism the portal **Test/Run** button uses, but it works without browser CORS concerns and is safe on Azure Government. It does **not** change the schedule; the next scheduled tick fires normally afterward.
+
+Run a single function instead of all of them:
+
+```powershell
+./scripts/invoke-functions-once.ps1 `
+  -FunctionAppName <function-app-name> `
+  -ResourceGroupName <deployment-resource-group> `
+  -FunctionName AlertsAndIncidents
+```
+
+Then watch results in the portal: **Function App → Functions → \<name\> → Invocations** (or **Monitor**).
+
+> **Why not `runOnStartup`?** The Functions runtime fires `runOnStartup=true` timers on *every* host cold-start (Consumption plans cold-start frequently), and with `useMonitor` defaults you can also get a separate catch-up run on startup. That means duplicate rows in your `_CL` tables and extra Defender API traffic. Use this script for ad-hoc testing instead.
+
+> **Portal Test/Run on GCC High.** The deploy script automatically adds the correct portal origin to CORS (`portal.azure.com` for commercial, `portal.azure.us` for `AzureUSGovernment`), so the portal **Code + Test → Test/Run** button also works on Gov clouds without further configuration.
+
 ### 5) Confirm deployed resources
 
 <p align="center">
