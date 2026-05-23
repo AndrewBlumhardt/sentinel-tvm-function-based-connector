@@ -93,6 +93,23 @@ Smoke mode sets `FUNCTIONS_SMOKE_MODULE` so only that module is registered at st
 
 By default, `deploy.ps1` leaves the Function App running after deployment.
 
+> **About the 25 custom tables.** The Bicep template creates **25 `<DatasetName>_CL` custom tables** in the Sentinel workspace (one per dataset in `Functions/datasets.json`), wired to three sharded DCRs. A few things that trip people up:
+>
+> - **Tables won't appear in the Logs query tool until they receive data** — the schema browser hides empty tables. Toggle **Hide empty tables** off in the table tree filter to see them before the first ingestion.
+> - The **Tables blade** in the workspace (`Log Analytics workspace → Tables`) lists them immediately after deploy, even with zero rows. Use that view to confirm table creation.
+> - If you want to drop a table you no longer need, do it manually from `Log Analytics workspace → Tables → ... → Delete`. The next Bicep deploy will recreate any table whose dataset is still in `Functions/datasets.json` — to keep it gone, also remove that dataset entry (or set its `enabled` flag to `false`).
+> - **Datasets ship enabled by default.** To turn a single dataset off without redeploying Bicep, set the app setting `Enabled_<DatasetName>=false` and restart the Function App. To turn one back on, set it to `true` (or remove the override). Example:
+>
+>   ```powershell
+>   az functionapp config appsettings set `
+>     --name <function-app-name> `
+>     --resource-group <resource-group> `
+>     --settings Enabled_DeviceTvmSoftwareInventory=false
+>   az functionapp restart --name <function-app-name> --resource-group <resource-group>
+>   ```
+>
+>   Disabling a dataset stops its timer-triggered function from running but does **not** remove the table or DCR mapping.
+
 #### Cloud selection and Defender endpoint
 
 `deploy.ps1` and the Bicep template auto-detect the deployment cloud. The Microsoft Defender API base URL is derived from `environment().name` at deploy time:
