@@ -72,21 +72,65 @@ if (-not [string]::IsNullOrWhiteSpace($FunctionName)) {
     $targets = @($FunctionName)
 }
 else {
-    Write-Host "Listing timer-triggered functions on $FunctionAppName..."
-    $functions = Invoke-AzJson -Args @("functionapp", "function", "list", "--name", $FunctionAppName, "--resource-group", $ResourceGroupName, "-o", "json")
-    if (-not $functions) {
-        throw "No functions returned. The host may not be ready or you may lack read access."
-    }
-    foreach ($f in $functions) {
-        $bindings = $f.config.bindings
-        $hasTimer = $false
-        foreach ($b in $bindings) {
-            if ($b.type -eq "timerTrigger") { $hasTimer = $true; break }
+    Write-Host "Listing functions on $FunctionAppName (retrying for up to 2 minutes while the host warms up)..."
+    $functions = $null
+    $listAttempts = 12
+    $listDelaySeconds = 10
+    for ($a = 1; $a -le $listAttempts; $a++) {
+        try {
+            $listResult = Invoke-AzJson -Args @("functionapp", "function", "list", "--name", $FunctionAppName, "--resource-group", $ResourceGroupName, "-o", "json")
+            # Force into an array — PowerShell unwraps single/empty arrays from function returns
+            $functions = @($listResult)
         }
-        if ($hasTimer) {
-            # az returns name as "<app>/<func>"; take the function part
-            $shortName = ($f.name -split "/")[-1]
-            $targets += $shortName
+        catch {
+            Write-Warning "  Attempt $a/$($listAttempts): list failed: $($_.Exception.Message)"
+            $functions = @()
+        }
+        if ($functions.Count -gt 0) { break }
+        if ($a -lt $listAttempts) {
+            Write-Host "  Attempt $a/$($listAttempts): host reported 0 functions, waiting $listDelaySeconds seconds..."
+            Start-Sleep -Seconds $listDelaySeconds
+        }
+    }
+
+    if ($functions.Count -eq 0) {
+        # Fall back to enumerating from local function.json files in the repo so the user can
+        # still verify against a freshly-deployed app where the management plane is slow to
+        # reflect the function list.
+        $repoRoot = Split-Path -Parent $PSScriptRoot
+        $localFunctions = Get-ChildItem -Path $repoRoot -Recurse -Filter "function.json" -ErrorAction SilentlyContinue |
+            Where-Object { $_.FullName -notmatch '\\.venv\\|\\node_modules\\|\\.python_packages\\' }
+        if ($localFunctions) {
+            Write-Warning "Management plane returned 0 functions. Falling back to local function.json files in the repo."
+            foreach ($lf in $localFunctions) {
+                try {
+                    $cfg = Get-Content -Raw -Path $lf.FullName | ConvertFrom-Json
+                    $hasTimer = $false
+                    foreach ($b in $cfg.bindings) { if ($b.type -eq 'timerTrigger') { $hasTimer = $true; break } }
+                    if ($hasTimer) {
+                        $name = Split-Path -Leaf $lf.DirectoryName
+                        $targets += $name
+                    }
+                }
+                catch { }
+            }
+        }
+        if ($targets.Count -eq 0) {
+            throw "No functions returned after $($listAttempts * $listDelaySeconds) seconds and no local function.json files were found. The host may still be loading the package (check WEBSITE_RUN_FROM_PACKAGE), or you may lack 'Microsoft.Web/sites/functions/read' on the app. Try: az functionapp function list --name $FunctionAppName --resource-group $ResourceGroupName -o table"
+        }
+    }
+    else {
+        foreach ($f in $functions) {
+            $bindings = $f.config.bindings
+            $hasTimer = $false
+            foreach ($b in $bindings) {
+                if ($b.type -eq "timerTrigger") { $hasTimer = $true; break }
+            }
+            if ($hasTimer) {
+                # az returns name as "<app>/<func>"; take the function part
+                $shortName = ($f.name -split "/")[-1]
+                $targets += $shortName
+            }
         }
     }
 }
