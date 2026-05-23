@@ -535,4 +535,13 @@ Walk this list in the Azure portal after a deploy (or any permissions change) to
    - Click the filter icon in the table list and **uncheck "Hide empty tables"**.
    - Tables only stop being "empty" after the first successful ingestion. If they stay empty after a function run cycle, look at the Function App's Application Insights traces.
 
+   To quickly see which `_CL` tables have received data, run:
+
+   ```kusto
+   union withsource=Table *_CL
+   | summarize count() by Table
+   ```
+
+   You should see all 25 `<DatasetName>_CL` tables in the results once every function has fired successfully at least once. **Missing tables on this list are the fastest signal** that either (a) the corresponding function is failing — check its **Invocations** tab — or (b) the dataset relies on an API that isn't available in your cloud (see [GCC High / Azure Government availability](#gcc-high--azure-government-availability)).
+
 6. **Restart after permission changes.** If you fix or add any role assignment or app-role grant, **restart the Function App** (`Function App → Overview → Restart`, or `az functionapp restart`). The host caches credentials and DCR clients at startup, so a restart is required to pick up new permissions and re-initialize the ingestion pipelines. Otherwise the next scheduled run can still fail with stale 403s.
