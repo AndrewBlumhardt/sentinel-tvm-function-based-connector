@@ -291,7 +291,19 @@ foreach ($permission in $RequiredPermissions) {
         continue
     }
 
-    $preferredDisplayName = if ($permission -like "Advanced*") { "Microsoft Threat Protection" } else { "WindowsDefenderATP" }
+    $preferredDisplayName = switch ($permission) {
+        # AdvancedQuery.Read.All is the LEGACY MDATP role that gates the
+        # /api/advancedqueries/run endpoint (even when reached via the unified
+        # MTP host). It MUST be granted on WindowsDefenderATP — the MTP SP may
+        # publish a same-named role but its GUID/audience is different and the
+        # legacy endpoint will still return 403.
+        "AdvancedQuery.Read.All"   { "WindowsDefenderATP" }
+        # AdvancedHunting.Read.All is the unified MTP role, granted on MTP.
+        "AdvancedHunting.Read.All" { "Microsoft Threat Protection" }
+        default {
+            if ($permission -like "Advanced*") { "Microsoft Threat Protection" } else { "WindowsDefenderATP" }
+        }
+    }
     $chosen = $matches | Where-Object { $_.ResourceDisplayName -eq $preferredDisplayName } | Select-Object -First 1
     if (-not $chosen) {
         $chosen = $matches | Select-Object -First 1
