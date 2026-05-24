@@ -107,15 +107,25 @@ if ($PSCmdlet.ParameterSetName -eq "Healthcheck") {
     Write-Host "  Function App  : $FunctionAppName"
     Write-Host "  ResourceGroup : $ResourceGroup"
 
-    $hostName = (& az functionapp show -n $FunctionAppName -g $ResourceGroup --query defaultHostName -o tsv).Trim()
-    if ($LASTEXITCODE -ne 0 -or [string]::IsNullOrWhiteSpace($hostName)) {
-        throw "Failed to resolve defaultHostName for $FunctionAppName in $ResourceGroup."
-    }
+    $currentCloud = (& az cloud show --query name -o tsv 2>$null)
+    if ($currentCloud) { Write-Host "  az cloud      : $currentCloud" }
+    $currentSub = (& az account show --query name -o tsv 2>$null)
+    if ($currentSub) { Write-Host "  az subscription: $currentSub" }
 
-    $funcKey = (& az functionapp function keys list -n $FunctionAppName -g $ResourceGroup --function-name healthcheck --query default -o tsv 2>$null).Trim()
+    $hostNameRaw = & az functionapp show -n $FunctionAppName -g $ResourceGroup --query defaultHostName -o tsv 2>&1
+    if ($LASTEXITCODE -ne 0 -or [string]::IsNullOrWhiteSpace([string]$hostNameRaw)) {
+        Write-Host ""
+        Write-Host "az output: $hostNameRaw"
+        throw "Failed to resolve defaultHostName for '$FunctionAppName' in '$ResourceGroup'. Check that your current az context ($currentCloud / $currentSub) actually contains this resource group. If the app is in a different cloud, run: az cloud set --name AzureCloud  (or AzureUSGovernment), then az login."
+    }
+    $hostName = ([string]$hostNameRaw).Trim()
+
+    $funcKeyRaw = & az functionapp function keys list -n $FunctionAppName -g $ResourceGroup --function-name healthcheck --query default -o tsv 2>$null
+    $funcKey = if ($funcKeyRaw) { ([string]$funcKeyRaw).Trim() } else { "" }
     if ($LASTEXITCODE -ne 0 -or [string]::IsNullOrWhiteSpace($funcKey)) {
         Write-Host "  (function-scope key not found, falling back to host key)"
-        $funcKey = (& az functionapp keys list -n $FunctionAppName -g $ResourceGroup --query functionKeys.default -o tsv).Trim()
+        $funcKeyRaw = & az functionapp keys list -n $FunctionAppName -g $ResourceGroup --query functionKeys.default -o tsv 2>$null
+        $funcKey = if ($funcKeyRaw) { ([string]$funcKeyRaw).Trim() } else { "" }
     }
     if ([string]::IsNullOrWhiteSpace($funcKey)) {
         throw "Failed to resolve a function key for healthcheck. Is the 'healthcheck' function deployed?"
