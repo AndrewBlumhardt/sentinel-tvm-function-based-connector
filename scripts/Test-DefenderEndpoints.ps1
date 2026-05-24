@@ -45,24 +45,50 @@
     # Force commercial cloud regardless of current az context
     pwsh ./scripts/Test-DefenderEndpoints.ps1 -Cloud AzureCloud
 
+.EXAMPLE
+    # Call the deployed /api/healthcheck (uses the Function App's MI — no user roles needed)
+    pwsh ./scripts/Test-DefenderEndpoints.ps1 -FunctionAppName sentinel-tvm-connector-func-91c358 -ResourceGroup fundemo4
+
 .NOTES
-    Required permissions on the *user* running this:
-      - Advanced Hunting probe needs AdvancedHunting.Read or AdvancedQuery.Read
-      - REST probes need Machine.Read / Vulnerability.Read / Software.Read /
-        SecurityRecommendation.Read / SecurityConfiguration.Read (delegated
-        scopes are enough for an interactive user).
-    A 403 from this script means YOUR user lacks the role, not that the
-    endpoint is missing on this cloud. A 404 means the endpoint isn't available.
+    Two modes:
+      1) Default (local): mints a delegated token under YOUR `az login` and probes
+         each endpoint from your workstation. Requires Defender delegated scopes
+         on your user — most admin accounts do NOT have these by default, so 403s
+         are common. Use mode 2 instead if your user can't be granted scopes.
+      2) -FunctionAppName + -ResourceGroup (recommended): calls the deployed
+         /api/healthcheck?full=1 over HTTPS, which uses the Function App's
+         managed identity (already granted the right app roles by deploy.ps1).
+         This proves the same code path the scheduled functions use.
+    A 403 in mode 1 means YOUR user lacks the role; a 404 means the endpoint
+    isn't available in that cloud. Mode 2 surfaces the MI's view, which is
+    what actually runs in production.
 #>
 
-[CmdletBinding()]
+[CmdletBinding(DefaultParameterSetName = "Local")]
 param(
+    [Parameter(ParameterSetName = "Local")]
+    [Parameter(ParameterSetName = "Healthcheck")]
     [string]$DatasetsPath = (Join-Path $PSScriptRoot ".." "Functions" "datasets.json"),
+
+    [Parameter(ParameterSetName = "Local")]
     [ValidateSet("auto", "AzureCloud", "AzureUSGovernment")]
     [string]$Cloud = "auto",
+
+    [Parameter(ParameterSetName = "Local")]
     [string]$HuntingBaseUrl = "",
+
+    [Parameter(ParameterSetName = "Local")]
     [string]$SecurityCenterBaseUrl = "",
-    [int]$Top = 1
+
+    [Parameter(ParameterSetName = "Local")]
+    [int]$Top = 1,
+
+    # ---- Healthcheck mode (calls deployed /api/healthcheck, uses MI) ----
+    [Parameter(ParameterSetName = "Healthcheck", Mandatory = $true)]
+    [string]$FunctionAppName,
+
+    [Parameter(ParameterSetName = "Healthcheck", Mandatory = $true)]
+    [string]$ResourceGroup
 )
 
 $ErrorActionPreference = "Stop"
@@ -70,6 +96,76 @@ $ErrorActionPreference = "Stop"
 if (-not (Get-Command az -ErrorAction SilentlyContinue)) {
     throw "Azure CLI (az) is required but was not found in PATH."
 }
+
+# ============================================================================
+# Healthcheck mode: just call the deployed /api/healthcheck?full=1 over HTTPS.
+# Uses the Function App's managed identity (already permissioned by deploy.ps1).
+# ============================================================================
+if ($PSCmdlet.ParameterSetName -eq "Healthcheck") {
+    Write-Host ""
+    Write-Host "--- Healthcheck mode ---"
+    Write-Host "  Function App  : $FunctionAppName"
+    Write-Host "  ResourceGroup : $ResourceGroup"
+
+    $hostName = (& az functionapp show -n $FunctionAppName -g $ResourceGroup --query defaultHostName -o tsv).Trim()
+    if ($LASTEXITCODE -ne 0 -or [string]::IsNullOrWhiteSpace($hostName)) {
+        throw "Failed to resolve defaultHostName for $FunctionAppName in $ResourceGroup."
+    }
+
+    $funcKey = (& az functionapp function keys list -n $FunctionAppName -g $ResourceGroup --function-name healthcheck --query default -o tsv 2>$null).Trim()
+    if ($LASTEXITCODE -ne 0 -or [string]::IsNullOrWhiteSpace($funcKey)) {
+        Write-Host "  (function-scope key not found, falling back to host key)"
+        $funcKey = (& az functionapp keys list -n $FunctionAppName -g $ResourceGroup --query functionKeys.default -o tsv).Trim()
+    }
+    if ([string]::IsNullOrWhiteSpace($funcKey)) {
+        throw "Failed to resolve a function key for healthcheck. Is the 'healthcheck' function deployed?"
+    }
+
+    $url = "https://$hostName/api/healthcheck?full=1&code=$funcKey"
+    Write-Host "  URL           : https://$hostName/api/healthcheck?full=1&code=***"
+    Write-Host "------------------------"
+    Write-Host ""
+    Write-Host "Calling healthcheck (this may take 30-60s on cold start)..."
+    Write-Host ""
+
+    try {
+        $resp = Invoke-RestMethod -Method GET -Uri $url -TimeoutSec 180
+    } catch {
+        throw "Healthcheck call failed: $($_.Exception.Message)"
+    }
+
+    if ($resp.summary) {
+        Write-Host "--- Summary ---"
+        Write-Host "  Cloud           : $($resp.summary.cloud)"
+        Write-Host "  Hunting base    : $($resp.summary.hunting_base)"
+        Write-Host "  REST base       : $($resp.summary.security_center_base)"
+        Write-Host "  MI client id    : $($resp.summary.managed_identity_client_id)"
+        Write-Host "  Checked / OK    : $($resp.summary.checked) / $($resp.summary.ok_count)"
+        Write-Host "  Failed          : $($resp.summary.failed_count)"
+        Write-Host "  Full probe?     : $($resp.summary.full)"
+        Write-Host ""
+    }
+
+    $rows = @($resp.results)
+    $rows | Sort-Object surface, dataset, url |
+        Format-Table @{n='Surface';e={$_.surface}}, @{n='Dataset';e={$_.dataset}}, @{n='Status';e={$_.status}}, @{n='ms';e={$_.elapsed_ms}}, @{n='URL';e={$_.url}} -AutoSize | Out-Host
+
+    $failed = @($rows | Where-Object { -not $_.ok })
+    if ($failed.Count -gt 0) {
+        Write-Host "--- Failure details ---"
+        $failed | Sort-Object surface, dataset |
+            Format-List surface, dataset, status, url, error, required_roles, hint | Out-Host
+    }
+    Write-Host ""
+    Write-Host "Done. (Use https://$hostName/api/healthcheck?full=1&code=... in a browser for the raw JSON.)"
+    return
+}
+
+# ============================================================================
+# Local mode: probe each endpoint with a delegated user token. NOTE: most user
+# accounts do not have Defender delegated scopes — 403s here are usually about
+# YOUR roles, not endpoint availability. Prefer -FunctionAppName mode.
+# ============================================================================
 
 # Resolve cloud
 $effectiveCloud = $Cloud
