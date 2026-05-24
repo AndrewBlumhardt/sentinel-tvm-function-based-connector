@@ -24,7 +24,6 @@ class LogIngestionClient:
             endpoint=endpoint,
             credential=credential,
             credential_scopes=[scope],
-            logging_enable=True,
         )
 
     def upload(self, rule_id: str, stream_name: str, records: list[dict[str, object]]) -> None:
