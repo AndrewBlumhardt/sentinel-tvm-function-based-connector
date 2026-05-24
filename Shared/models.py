@@ -52,8 +52,14 @@ class AppSettings:
     collector_version: str
     logs_ingestion_endpoint: str
     logs_ingestion_rule_id: str
-    # MTP/Defender XDR endpoint used by Advanced Hunting (POST /api/advancedqueries/run).
-    # Audience: Microsoft Threat Protection.
+    # Microsoft Graph endpoint used by Advanced Hunting (POST /v1.0/security/runHuntingQuery).
+    # Audience: Microsoft Graph. Required app role: ThreatHunting.Read.All on Microsoft
+    # Graph SP. This is the MODERN unified hunting API — use this, not the legacy
+    # /api/advancedqueries/run on the MDATP host (which requires the separate
+    # AdvancedQuery.Read.All role on WindowsDefenderATP SP).
+    defender_hunting_base_url: str = "https://graph.microsoft.com"
+    # Legacy MDATP/MTP base URL. Retained for backward compatibility with existing
+    # deployments and for the healthcheck "REST host" fallback. NOT used for hunting.
     defender_api_base_url: str = "https://api.security.microsoft.com"
     # Defender for Endpoint (WindowsDefenderATP) REST endpoint used by DefenderRestClient
     # (GET /api/<Endpoint>). On Gov this is a DIFFERENT host than Advanced Hunting:

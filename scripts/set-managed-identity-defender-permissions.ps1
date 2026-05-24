@@ -15,6 +15,7 @@ param(
     [switch]$SkipLogin,
 
     [string[]]$RequiredPermissions = @(
+        "ThreatHunting.Read.All",
         "AdvancedHunting.Read.All",
         "AdvancedQuery.Read.All",
         "Machine.Read.All",
@@ -236,12 +237,12 @@ Write-Host "Managed identity object ID: $principalId"
 $defenderSps = (Invoke-AzCli -Args @(
     "ad", "sp", "list",
     "--all",
-    "--query", "[?displayName=='Microsoft Threat Protection' || displayName=='WindowsDefenderATP'].{id:id,appId:appId,displayName:displayName}",
+    "--query", "[?displayName=='Microsoft Threat Protection' || displayName=='WindowsDefenderATP' || displayName=='Microsoft Graph'].{id:id,appId:appId,displayName:displayName}",
     "-o", "json"
 ) | ConvertFrom-Json)
 
 if (-not $defenderSps -or $defenderSps.Count -eq 0) {
-    throw "Failed to resolve Microsoft Threat Protection service principal."
+    throw "Failed to resolve Microsoft Threat Protection / Microsoft Graph service principals."
 }
 
 Write-Host "Candidate Defender service principals found:"
@@ -292,6 +293,10 @@ foreach ($permission in $RequiredPermissions) {
     }
 
     $preferredDisplayName = switch ($permission) {
+        # ThreatHunting.Read.All is the MODERN unified hunting role on Microsoft
+        # Graph (POST /v1.0/security/runHuntingQuery). This is the canonical role
+        # the connector now uses for Advanced Hunting; the two below are legacy.
+        "ThreatHunting.Read.All"   { "Microsoft Graph" }
         # AdvancedQuery.Read.All is the LEGACY MDATP role that gates the
         # /api/advancedqueries/run endpoint (even when reached via the unified
         # MTP host). It MUST be granted on WindowsDefenderATP — the MTP SP may

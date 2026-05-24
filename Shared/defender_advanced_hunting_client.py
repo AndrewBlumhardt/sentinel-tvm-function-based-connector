@@ -9,7 +9,18 @@ from Shared.retry_policy import RetryPolicy
 
 
 class DefenderAdvancedHuntingClient:
-    def __init__(self, token_provider, retry_policy: RetryPolicy, base_url: str = "https://api.security.microsoft.com") -> None:
+    """Advanced Hunting client targeting the Microsoft Graph runHuntingQuery endpoint.
+
+    Uses POST {graph}/v1.0/security/runHuntingQuery, which requires the
+    ThreatHunting.Read.All application role on the Microsoft Graph service
+    principal. This is the same API the Logic App-based TVM connector uses and
+    avoids the legacy MDATP /api/advancedqueries/run endpoint that requires the
+    separate AdvancedQuery.Read.All role on the WindowsDefenderATP SP.
+    """
+
+    HUNTING_PATH = "/v1.0/security/runHuntingQuery"
+
+    def __init__(self, token_provider, retry_policy: RetryPolicy, base_url: str = "https://graph.microsoft.com") -> None:
         self._token_provider = token_provider
         self._retry_policy = retry_policy
         self._session = requests.Session()
@@ -21,7 +32,8 @@ class DefenderAdvancedHuntingClient:
         while True:
             query = self._build_query(dataset, skip=page_index * page_size, take=page_size)
             response_json = self._retry_policy.run(lambda: self._post_query(query))
-            rows = response_json.get("Results", [])
+            # Graph returns lowercase 'results'; tolerate legacy 'Results' as well.
+            rows = response_json.get("results") or response_json.get("Results") or []
             if not rows:
                 break
             yield rows
@@ -38,7 +50,7 @@ class DefenderAdvancedHuntingClient:
 
     def _post_query(self, query: str) -> dict[str, object]:
         token = self._token_provider.get_token(f"{self._base_url}/.default")
-        url = f"{self._base_url}/api/advancedqueries/run"
+        url = f"{self._base_url}{self.HUNTING_PATH}"
         response = self._session.post(
             url,
             headers={

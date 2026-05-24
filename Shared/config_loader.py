@@ -18,6 +18,7 @@ class ConfigLoader:
             collector_version=os.getenv("CollectorVersion", "0.1.0"),
             logs_ingestion_endpoint=os.getenv("LogsIngestion__Endpoint", ""),
             logs_ingestion_rule_id=os.getenv("LogsIngestion__RuleId", ""),
+            defender_hunting_base_url=(os.getenv("Defender__HuntingBaseUrl") or "https://graph.microsoft.com").rstrip("/"),
             defender_api_base_url=(os.getenv("Defender__ApiBaseUrl") or "https://api.security.microsoft.com").rstrip("/"),
             defender_security_center_api_base_url=(
                 (os.getenv("Defender__SecurityCenterApiBaseUrl") or "").rstrip("/") or None

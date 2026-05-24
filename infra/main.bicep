@@ -79,6 +79,10 @@ var commonAppSettings = [
     value: dataCollectionEndpoint.properties.logsIngestion.endpoint
   }
   {
+    name: 'Defender__HuntingBaseUrl'
+    value: resolvedDefenderHuntingBaseUrl
+  }
+  {
     name: 'Defender__ApiBaseUrl'
     value: resolvedDefenderApiBaseUrl
   }
@@ -127,11 +131,16 @@ param dataCollectionRuleName string = ''
 @description('Override for the Microsoft Defender API base URL. Leave empty to auto-select based on the deployment cloud: https://api.security.microsoft.com for Azure commercial, https://api-gov.security.microsoft.us for Azure Government. Set explicitly only when targeting a sovereign cloud the auto-mapping does not yet cover, or for testing.')
 param defenderApiBaseUrl string = ''
 
+@description('Override for the Microsoft Graph base URL used by Advanced Hunting (POST /v1.0/security/runHuntingQuery). Leave empty to auto-select: https://graph.microsoft.com on commercial, https://graph.microsoft.us on Azure Government.')
+param defenderHuntingBaseUrl string = ''
+
 @description('Override for the Defender for Endpoint (WindowsDefenderATP) REST API base URL used by GET /api/<Endpoint> calls. Leave empty to auto-select: https://api.security.microsoft.com on commercial, https://api-gov.securitycenter.microsoft.us on Azure Government (NOTE: this is a different host than Advanced Hunting on Gov).')
 param defenderSecurityCenterApiBaseUrl string = ''
 
 var autoDetectedDefenderApiBaseUrl = environment().name == 'AzureUSGovernment' ? 'https://api-gov.security.microsoft.us' : 'https://api.security.microsoft.com'
 var resolvedDefenderApiBaseUrl = empty(defenderApiBaseUrl) ? autoDetectedDefenderApiBaseUrl : defenderApiBaseUrl
+var autoDetectedDefenderHuntingBaseUrl = environment().name == 'AzureUSGovernment' ? 'https://graph.microsoft.us' : 'https://graph.microsoft.com'
+var resolvedDefenderHuntingBaseUrl = empty(defenderHuntingBaseUrl) ? autoDetectedDefenderHuntingBaseUrl : defenderHuntingBaseUrl
 var autoDetectedDefenderSecurityCenterApiBaseUrl = environment().name == 'AzureUSGovernment' ? 'https://api-gov.securitycenter.microsoft.us' : 'https://api.security.microsoft.com'
 var resolvedDefenderSecurityCenterApiBaseUrl = empty(defenderSecurityCenterApiBaseUrl) ? autoDetectedDefenderSecurityCenterApiBaseUrl : defenderSecurityCenterApiBaseUrl
 

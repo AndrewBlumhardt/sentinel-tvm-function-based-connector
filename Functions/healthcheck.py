@@ -88,14 +88,14 @@ def healthcheck(req: func.HttpRequest) -> func.HttpResponse:
     app_settings = config_loader.load_app_settings()
     datasets = config_loader.load_datasets()
 
-    hunting_base = app_settings.defender_api_base_url
+    hunting_base = app_settings.defender_hunting_base_url
     security_center_base = app_settings.resolved_security_center_api_base_url
 
     auth = DefenderAuthProvider(app_settings.managed_identity_client_id)
 
     results: list[dict[str, Any]] = []
 
-    # 1) Advanced Hunting (Microsoft Threat Protection audience).
+    # 1) Advanced Hunting via Microsoft Graph (runHuntingQuery).
     hunting_token, hunting_err = _safe_token(auth, f"{hunting_base}/.default")
     if hunting_err:
         results.append({
@@ -107,21 +107,22 @@ def healthcheck(req: func.HttpRequest) -> func.HttpResponse:
             "ok": False,
             "elapsed_ms": 0,
             "error": hunting_err,
-            "hint": "Token acquisition failed for the Advanced Hunting audience. Check the managed identity is enabled and the host is reachable.",
+            "hint": "Token acquisition failed for the Microsoft Graph audience. Check the managed identity is enabled and the host is reachable.",
         })
     else:
         probe = _probe(
             "POST",
-            f"{hunting_base}/api/advancedqueries/run",
+            f"{hunting_base}/v1.0/security/runHuntingQuery",
             hunting_token,
             json_body={"Query": "DeviceInfo | take 1"},
         )
         probe["surface"] = "advanced_hunting"
         probe["host"] = hunting_base
-        probe["required_roles"] = ["AdvancedHunting.Read.All", "AdvancedQuery.Read.All"]
+        probe["required_roles"] = ["ThreatHunting.Read.All"]
         probe["hint"] = (
-            "403 => missing AdvancedQuery.Read.All or AdvancedHunting.Read.All on Microsoft Threat Protection SP. "
-            "404/DNS => wrong host for this cloud (Defender__ApiBaseUrl)."
+            "403 => missing ThreatHunting.Read.All on Microsoft Graph SP. "
+            "404/DNS => wrong host for this cloud (Defender__HuntingBaseUrl). "
+            "On Gov use https://graph.microsoft.us."
         )
         results.append(probe)
 
