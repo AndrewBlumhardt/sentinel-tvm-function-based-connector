@@ -17,28 +17,43 @@ class DefenderRestClient:
 
     def iter_pages(self, dataset: DatasetConfig) -> Iterator[list[dict[str, object]]]:
         next_url: str | None = self._build_url(dataset.endpoint or "")
+        # Track whether the next URL is a server-provided @odata.nextLink (which
+        # already encodes $top/$skip) vs. our initial endpoint (which still needs
+        # the first page's params attached). Passing $top/$skip on a nextLink
+        # produces duplicate query keys and a 400 "Filter parameter is invalid".
+        use_nextlink = False
         skip = 0
         while next_url:
             current_url = next_url
-            response_json = self._retry_policy.run(lambda: self._get_page(current_url, dataset.page_size, skip))
+            current_use_nextlink = use_nextlink
+            response_json = self._retry_policy.run(
+                lambda: self._get_page(current_url, dataset.page_size, skip, current_use_nextlink)
+            )
             rows = self._extract_rows(response_json)
             if not rows:
                 break
             yield rows
-            next_url = response_json.get("@odata.nextLink")
-            if not next_url:
+            next_link = response_json.get("@odata.nextLink")
+            if isinstance(next_link, str) and next_link:
+                next_url = next_link
+                use_nextlink = True
+            else:
                 if len(rows) < dataset.page_size:
                     break
                 skip += dataset.page_size
+                use_nextlink = False
 
-    def _get_page(self, url: str, top: int, skip: int) -> dict[str, object]:
+    def _get_page(self, url: str, top: int, skip: int, use_nextlink: bool = False) -> dict[str, object]:
         token = self._token_provider.get_token(f"{self._base_url}/.default")
-        response = self._session.get(
-            url,
-            headers={"Authorization": f"Bearer {token}"},
-            params={"$top": top, "$skip": skip},
-            timeout=300,
-        )
+        request_kwargs: dict[str, object] = {
+            "headers": {"Authorization": f"Bearer {token}"},
+            "timeout": 300,
+        }
+        if not use_nextlink:
+            # Only attach $top/$skip on the initial request. The server's
+            # @odata.nextLink already carries its own paging parameters.
+            request_kwargs["params"] = {"$top": top, "$skip": skip}
+        response = self._session.get(url, **request_kwargs)
         if not response.ok:
             body = (response.text or "")[:2000]
             raise requests.HTTPError(
