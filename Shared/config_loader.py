@@ -1,3 +1,15 @@
+"""Loads global app settings and per-dataset definitions.
+
+App settings come from environment variables (Function App settings). Dataset
+definitions come from ``Functions/datasets.json``; per-dataset values can be
+overridden at runtime by ``Dataset__<DatasetName>__<property>`` or
+``DcrRuleId_<DatasetName>`` environment variables, which is how ``deploy.ps1``
+wires DCR rule IDs into the Function App after the DCR is created.
+
+Failure modes: a missing or malformed ``datasets.json`` raises at startup;
+a missing required field on a dataset raises ``KeyError`` when that dataset is
+used.
+"""
 from __future__ import annotations
 
 import json

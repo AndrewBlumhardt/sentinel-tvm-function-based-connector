@@ -1,3 +1,9 @@
+"""Flattens nested JSON objects into the flat column layout that DCRs expect.
+
+Nested objects become underscore-joined keys (``foo.bar`` -> ``foo_bar``).
+Arrays are JSON-serialized to strings so they fit a single ``dynamic`` or
+``string`` column. Scalars pass through unchanged.
+"""
 from __future__ import annotations
 
 import json

@@ -1,3 +1,9 @@
+"""Composition root for the timer-triggered runtime graph.
+
+Builds the registry, auth provider, upstream clients, and ingestion client once
+per worker process and caches the resulting ``DatasetRunner`` via ``lru_cache``.
+All per-dataset timer functions go through ``get_dataset_runner()``.
+"""
 from __future__ import annotations
 
 from functools import lru_cache

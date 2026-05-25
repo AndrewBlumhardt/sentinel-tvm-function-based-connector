@@ -1,3 +1,11 @@
+"""Factory used by every per-dataset timer function in this folder.
+
+Each ``Functions/<dataset>.py`` file is a 6-line shim that calls
+``build_timer_blueprint(...)`` with its dataset name, schedule app-setting key,
+and function name. The blueprint registers a single timer trigger that hands
+off to the shared ``DatasetRunner`` — keeping per-dataset files trivially small
+and keeping all real logic in ``Shared/``.
+"""
 from __future__ import annotations
 
 import logging

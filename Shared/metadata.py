@@ -1,3 +1,4 @@
+"""Per-run ingestion metadata stamped onto every record (``TimeGenerated``)."""
 from __future__ import annotations
 
 from datetime import datetime, timezone

@@ -1,3 +1,4 @@
+"""Chunks a stream of records into fixed-size lists for batch upload."""
 from __future__ import annotations
 
 from collections.abc import Iterable, Iterator

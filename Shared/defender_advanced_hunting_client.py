@@ -1,3 +1,11 @@
+"""Microsoft Graph Advanced Hunting client (``runHuntingQuery``).
+
+Used by every ``DeviceTvm*`` dataset and any other ``sourceType:
+AdvancedHunting`` entry. Hits ``graph.microsoft.com`` (commercial) or
+``graph.microsoft.us`` (GCC High). Requires ``ThreatHunting.Read.All`` on the
+Microsoft Graph service principal. See the class docstring for why this is the
+correct surface vs. the legacy MDATP ``/api/advancedqueries/run`` endpoint.
+"""
 from __future__ import annotations
 
 from collections.abc import Iterator

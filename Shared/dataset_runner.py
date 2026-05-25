@@ -1,3 +1,13 @@
+"""Runs one dataset end-to-end: page from upstream, transform, upload to a DCR.
+
+Dispatches to the right upstream client (Advanced Hunting via Graph, Defender
+REST, or NIST) based on ``sourceType``, flattens nested JSON to match the table
+schema, batches the rows, and POSTs each batch through the Logs Ingestion API.
+
+Disabled datasets are skipped with an info-level log line. A missing DCR rule
+ID (neither per-dataset ``DcrRuleId_<Name>`` nor global ``LogsIngestion__RuleId``)
+is a hard failure — the dataset cannot ingest without a stream destination.
+"""
 from __future__ import annotations
 
 import json
@@ -47,8 +57,7 @@ class DatasetRunner:
                 "Set DcrRuleId_<DatasetName> or LogsIngestion__RuleId."
             )
 
-        snapshot_context = create_snapshot_context()
-        metadata = snapshot_context
+        metadata = create_snapshot_context()
 
         ingested = 0
         pages = 0

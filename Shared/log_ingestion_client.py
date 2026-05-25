@@ -1,3 +1,9 @@
+"""Thin wrapper over ``azure.monitor.ingestion.LogsIngestionClient``.
+
+Selects the correct credential scope for the cloud — the SDK default
+(``monitor.azure.com``) yields ``InvalidAudience`` from Gov/China DCEs. The
+DCE hostname is the only signal we need to pick the right audience.
+"""
 from __future__ import annotations
 
 from azure.monitor.ingestion import LogsIngestionClient

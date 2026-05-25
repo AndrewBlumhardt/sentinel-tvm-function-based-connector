@@ -1,3 +1,8 @@
+"""Shared ``logging.Logger`` instance used by the runtime modules.
+
+Azure Functions captures stdlib logging and forwards it to Application Insights
+when the host is configured for AI, so callers do not need to attach handlers.
+"""
 from __future__ import annotations
 
 import logging

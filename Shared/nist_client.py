@@ -1,3 +1,13 @@
+"""NIST NVD 2.0 API client used by the ``Nist*`` datasets.
+
+Pages via ``startIndex``/``resultsPerPage`` until ``totalResults`` is reached.
+Unauthenticated callers are rate-limited (5 req / 30s); set ``Nist__ApiKey``
+to raise the limit to 50 req / 30s. ``requestDelayMs`` in the dataset config
+gives a simple way to throttle between page calls.
+
+Transform modes: ``cve_summary`` projects the CVE record itself; the default
+flattens the CPE match list into one row per ``cpeMatch``.
+"""
 from __future__ import annotations
 
 import time

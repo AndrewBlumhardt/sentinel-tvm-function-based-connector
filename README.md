@@ -457,7 +457,7 @@ Both are required for end-to-end ingestion.
 
 ## App setting migration
 
-Use the migration script to rename existing legacy dataset app setting keys in a deployed Function App.
+Use the migration script to rename the legacy `Dataset__<DatasetName>__dcrRuleId` app settings on an existing Function App to the current `DcrRuleId_<DatasetName>` shape that `deploy.ps1` now emits. Only needed for Function Apps that were first deployed with an older version of this repo — fresh deployments already use the new names.
 
 ```powershell
 ./scripts/migrate-dataset-setting-names.ps1 `

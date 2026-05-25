@@ -1,3 +1,9 @@
+"""Immutable dataclasses describing app settings and per-dataset configuration.
+
+These are read once at startup by ``ConfigLoader`` and treated as read-only by
+the rest of the runtime. Per-dataset overrides flow through env vars rather
+than mutating these objects.
+"""
 from __future__ import annotations
 
 from dataclasses import dataclass, field

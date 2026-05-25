@@ -1,3 +1,11 @@
+"""Simple linear-backoff retry wrapper.
+
+Retries any exception ``attempts`` times with ``base_delay_seconds * attempt``
+backoff between tries. Intentionally retry-everything: 4xx errors that are not
+going to recover (401, 403, 404) will still get retried and then surfaced, on
+the theory that the cost of a few extra calls is small and the original error
+is preserved for the operator to read in logs.
+"""
 from __future__ import annotations
 
 import time

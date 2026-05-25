@@ -1,3 +1,16 @@
+"""Defender for Endpoint REST API client (WindowsDefenderATP audience).
+
+Used by the ``DefApi*`` datasets that pull from ``/api/<Endpoint>`` on
+``api.security.microsoft.com`` (commercial) or ``api-gov.securitycenter.microsoft.us``
+(GCC High). Note the Gov host is ``securitycenter`` — a different host than
+Advanced Hunting. Required app roles depend on the endpoint (Machine.Read.All,
+Software.Read.All, Vulnerability.Read.All, etc.) granted on the
+WindowsDefenderATP service principal.
+
+Paging: prefers ``@odata.nextLink`` when the server returns one and otherwise
+falls back to ``$top``/``$skip``. The two cannot be combined — passing
+``$top``/``$skip`` on a nextLink URL produces a 400 from the service.
+"""
 from __future__ import annotations
 
 from collections.abc import Iterator

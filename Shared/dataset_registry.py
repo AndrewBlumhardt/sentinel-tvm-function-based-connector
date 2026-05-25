@@ -1,3 +1,8 @@
+"""In-memory lookup of dataset configurations by name.
+
+Built once at runtime startup from the list returned by ``ConfigLoader``. Used
+by ``DatasetRunner`` to resolve the dataset for an incoming timer trigger.
+"""
 from __future__ import annotations
 
 from Shared.models import DatasetConfig
