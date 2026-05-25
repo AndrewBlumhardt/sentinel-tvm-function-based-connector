@@ -99,13 +99,13 @@ var commonAppSettings = [
     value: ''
   }
 ]
-var datasetToggleSettings = [for dataset in datasets: {
-  name: 'Enabled_${dataset.name}'
-  value: string(bool(dataset.enabled))
-}]
-
-
-var mergedAppSettings = concat(commonAppSettings, datasetToggleSettings, scheduleAppSettings)
+// Per-dataset enable/disable is controlled in two places, NEITHER of which is an app setting:
+//   1. datasets.json -> "enabled": true/false  (read by ConfigLoader, honored by DatasetRunner)
+//   2. The Function App "Functions" blade in the portal -> per-function Enable/Disable toggle
+// We intentionally do NOT emit Enabled_<DatasetName> app settings any more; nothing in the
+// Python code reads them, and they only created portal clutter that conflicted with the
+// real per-function enable switch operators actually use.
+var mergedAppSettings = concat(commonAppSettings, scheduleAppSettings)
 
 @description('Prefix used for generated resource names.')
 param namePrefix string = 'sentinel-tvm'
