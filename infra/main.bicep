@@ -294,17 +294,17 @@ resource functionAppSettings 'Microsoft.Web/sites/config@2023-12-01' = {
       DcrRuleId_DeviceTvmHardwareFirmware: dataCollectionRules[0].properties.immutableId
       DcrRuleId_DeviceTvmInfoGathering: dataCollectionRules[1].properties.immutableId
       DcrRuleId_DeviceTvmInfoGatheringKB: dataCollectionRules[1].properties.immutableId
-      DcrRuleId_ApiSoftwareVulnerabilitiesByMachine: dataCollectionRules[1].properties.immutableId
-      DcrRuleId_ApiMachines: dataCollectionRules[1].properties.immutableId
-      DcrRuleId_ApiSoftwareInventoryByMachine: dataCollectionRules[1].properties.immutableId
-      DcrRuleId_ApiNonCpeSoftwareInventory: dataCollectionRules[1].properties.immutableId
-      DcrRuleId_ApiRecommendations: dataCollectionRules[1].properties.immutableId
-      DcrRuleId_ApiSecureConfigurationAssessmentByMachine: dataCollectionRules[1].properties.immutableId
-      DcrRuleId_ApiVulnerabilitiesCatalog: dataCollectionRules[1].properties.immutableId
-      DcrRuleId_ApiBrowserExtensionsInventory: dataCollectionRules[1].properties.immutableId
-      DcrRuleId_ApiBrowserExtensionPermissions: dataCollectionRules[2].properties.immutableId
-      DcrRuleId_ApiCertificateInventoryAssessment: dataCollectionRules[2].properties.immutableId
-      DcrRuleId_ApiHardwareFirmwareAssessment: dataCollectionRules[2].properties.immutableId
+      DcrRuleId_DefApiSoftwareVulnerabilitiesByMachine: dataCollectionRules[1].properties.immutableId
+      DcrRuleId_DefApiMachines: dataCollectionRules[1].properties.immutableId
+      DcrRuleId_DefApiSoftwareInventoryByMachine: dataCollectionRules[1].properties.immutableId
+      DcrRuleId_DefApiNonCpeSoftwareInventory: dataCollectionRules[1].properties.immutableId
+      DcrRuleId_DefApiRecommendations: dataCollectionRules[1].properties.immutableId
+      DcrRuleId_DefApiSecureConfigurationAssessmentByMachine: dataCollectionRules[1].properties.immutableId
+      DcrRuleId_DefApiVulnerabilitiesCatalog: dataCollectionRules[1].properties.immutableId
+      DcrRuleId_DefApiBrowserExtensionsInventory: dataCollectionRules[1].properties.immutableId
+      DcrRuleId_DefApiBrowserExtensionPermissions: dataCollectionRules[2].properties.immutableId
+      DcrRuleId_DefApiCertificateInventoryAssessment: dataCollectionRules[2].properties.immutableId
+      DcrRuleId_DefApiHardwareFirmwareAssessment: dataCollectionRules[2].properties.immutableId
       DcrRuleId_NistCveCatalog: dataCollectionRules[2].properties.immutableId
       DcrRuleId_NistCpeConfigurations: dataCollectionRules[2].properties.immutableId
     }
