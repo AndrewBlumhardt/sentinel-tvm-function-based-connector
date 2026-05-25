@@ -10,9 +10,8 @@ Azure Function connector for collecting Microsoft Defender TVM data and ingestin
 - [Optional local development setup](#optional-local-development-setup)
 - [Post-deployment checks](#post-deployment-parameters-and-validation)
 - [Dataset coverage](#dataset-coverage)
-- [Table schema model](#table-schema-and-added-columns)
-- [Configuration highlights](#configuration-highlights)
 - [Folder guides](#folder-guides)
+- [Repository root file description](#repository-root-file-description)
 - [Troubleshooting](#troubleshooting)
 
 ## Why this exists
@@ -39,16 +38,12 @@ Running both lets you compare coverage and keep what works best for your environ
 
 ## Quick deployment
 
-Use this exact order.
-
 1. Clone the repo locally and open PowerShell in the repo folder.
 2. Install prerequisites (Azure CLI + Python 3.11), sign in, verify cloud/subscription.
-3. Run `scripts/deploy.ps1` — deploys infrastructure and publishes function code.
-4. Run `scripts/set-managed-identity-defender-permissions.ps1` — grants the managed identity the Defender app roles.
-5. Run `scripts/invoke-functions-once.ps1` — fires every timer function once to verify the pipeline end to end without waiting up to an hour for the slowest scheduled tick.
+3. Run `scripts/deploy.ps1` — deploys infrastructure, publishes function code, and grants the managed identity its Defender API permissions when the deployer has Entra admin-consent rights.
+4. Run `scripts/set-managed-identity-defender-permissions.ps1` only if Step 3 skipped the permission grant (deployer lacked Entra admin-consent rights, or permissions need to be granted out of band by someone with higher privileges).
+5. *(Optional)* Run `scripts/invoke-functions-once.ps1` to fire every timer function once and confirm the pipeline end to end without waiting for the next scheduled tick.
 6. Run post-deployment validation.
-
-> **Why the order matters.** Step 3 stands up infrastructure and starts the timer functions, but the managed identity has no Defender API permissions yet — so every scheduled tick between step 3 and step 4 will fail with `401`/`403`. Step 4 grants those app roles. Step 5 then triggers a one-shot run so you can confirm success on the **Invocations** tab immediately, instead of waiting for the next NCRONTAB tick (5 minutes to 1 hour depending on dataset) and worrying whether the "failed" history you see is leftover from before step 4 or a real new problem.
 
 ### 1) Clone locally and open PowerShell
 
@@ -59,11 +54,23 @@ Set-Location .\sentinel-tvm-function-based-connector
 
 ### 2) Sign in and verify context
 
-> **Prerequisites:** [Azure CLI](https://learn.microsoft.com/cli/azure/install-azure-cli) must be installed. Python 3.11 must be available in PATH for dependency vendoring.
+> **Prerequisites:** [Azure CLI](https://learn.microsoft.com/cli/azure/install-azure-cli) installed and Python 3.11 on PATH for dependency vendoring. The deployed Function App runs on Python 3.11 — use a matching virtual environment for the cleanest publish.
 
-The deployed Function App currently uses Python 3.11. For the cleanest publish experience, use a Python 3.11 virtual environment before running `deploy.ps1`.
+Set the cloud, sign in, and confirm context. Commercial cloud is the default; use the Gov variant for GCC High.
+
+**Commercial cloud (default):**
 
 ```powershell
+az cloud set --name AzureCloud
+az login
+az cloud show --query name -o tsv
+az account show --query "{subscription:id, tenant:tenantId, user:user.name}" -o table
+```
+
+**Azure US Government (GCC High):**
+
+```powershell
+az cloud set --name AzureUSGovernment
 az login
 az cloud show --query name -o tsv
 az account show --query "{subscription:id, tenant:tenantId, user:user.name}" -o table
@@ -81,7 +88,9 @@ az account show --query "{subscription:id, tenant:tenantId, user:user.name}" -o 
 
 ### 3) Deploy infrastructure and publish function code
 
-Required access for this step: `Contributor` on the deployment resource group.
+Required access for this step: `Contributor` on the deployment resource group, and write access to the Sentinel workspace's resource group (so `workspaceTables.bicep` can create the custom `_CL` tables).
+
+**Commercial cloud (default):**
 
 ```powershell
 ./scripts/deploy.ps1 `
@@ -91,7 +100,7 @@ Required access for this step: `Contributor` on the deployment resource group.
   -SubscriptionId <subscription-id>
 ```
 
-For a minimal deployment smoke test (single function module only), add `-SmokeModule` with a module name from `Functions/` (without `.py`):
+**Azure US Government (GCC High):** add `-CloudName AzureUSGovernment`.
 
 ```powershell
 ./scripts/deploy.ps1 `
@@ -99,12 +108,23 @@ For a minimal deployment smoke test (single function module only), add `-SmokeMo
   -WorkspaceName <sentinel-workspace-name> `
   -WorkspaceResourceGroupName <workspace-resource-group> `
   -SubscriptionId <subscription-id> `
-  -SmokeModule device_tvm_software_inventory
+  -CloudName AzureUSGovernment
 ```
 
-Smoke mode sets `FUNCTIONS_SMOKE_MODULE` so only that module is registered at startup. Omitting `-SmokeModule` restores normal full-module discovery.
+`deploy.ps1` and the Bicep template auto-detect the cloud and pick the correct Defender API hosts (`api.security.microsoft.com` / `api.securitycenter.microsoft.com` for commercial, `api-gov.security.microsoft.us` / `api-gov.securitycenter.microsoft.us` for Gov). The Python clients use the resolved value for both the request host and the OAuth token scope (`<base>/.default`), so changing the cloud switches both in lock-step. Override only when targeting a sovereign cloud not in the auto-mapping or a private preview endpoint:
 
-By default, `deploy.ps1` leaves the Function App running after deployment.
+```powershell
+./scripts/deploy.ps1 `
+  ... `
+  -CloudName AzureUSGovernment `
+  -DefenderApiBaseUrl https://api-gov.security.microsoft.us
+```
+
+`deploy.ps1` prints the resolved Function App name during preflight — use that exact value in follow-on commands. By default, the Function App is left running after deployment. To prevent triggers from firing immediately, stop it manually:
+
+```powershell
+az functionapp stop --name <function-app-name> --resource-group <deployment-resource-group>
+```
 
 > **About the 25 custom tables.** The Bicep template creates **25 `<DatasetName>_CL` custom tables** in the Sentinel workspace (one per dataset in `Functions/datasets.json`), wired to three sharded DCRs. A few things that trip people up:
 >
@@ -127,72 +147,19 @@ By default, `deploy.ps1` leaves the Function App running after deployment.
 
 #### GCC High / Azure Government availability
 
-The Defender for Endpoint REST APIs are generally available in GCC High, but a subset of capabilities under **Microsoft Defender Vulnerability Management (MDVM) premium** are not exposed on Government clouds (see [Defender for Endpoint for US Government customers](https://learn.microsoft.com/en-us/defender-endpoint/gov) — "Microsoft Defender Vulnerability Management premium capabilities" is listed in the feature-parity gaps).
+The Defender for Endpoint REST APIs are generally available in GCC High, but a subset of **Microsoft Defender Vulnerability Management (MDVM) premium** capabilities are not exposed on Government clouds (see [Defender for Endpoint for US Government customers](https://learn.microsoft.com/en-us/defender-endpoint/gov)). The following five dataset endpoints currently return `404` on GCC High — disable these functions on Gov deployments (Function App → **Functions** → \<name\> → **Disable**, or set `AzureWebJobs.<FunctionName>.Disabled=true`):
 
-Observed on GCC High during testing (confirmed via `/api/healthcheck?full=1` — see Step 4c):
+- `DefApiNonCpeSoftwareInventory`
+- `DefApiBrowserExtensionsInventory`
+- `DefApiBrowserExtensionPermissions`
+- `DefApiCertificateInventoryAssessment`
+- `DefApiHardwareFirmwareAssessment`
 
-| Dataset | Endpoint | Status on GCC High | Notes |
-| --- | --- | --- | --- |
-| `DefApiNonCpeSoftwareInventory` | `/api/SoftwareInventories/NonCpeSoftwareInventory` | 404 | MDVM premium — non-CPE software inventory not surfaced on Gov. |
-| `DefApiBrowserExtensionsInventory` | `/api/BrowserExtensionsInventories` | 404 | MDVM premium — browser extensions assessment not surfaced on Gov. |
-| `DefApiBrowserExtensionPermissions` | `/api/BrowserExtensionsPermissions` | 404 | Same as above. |
-| `DefApiCertificateInventoryAssessment` | `/api/CertificateInventories` | 404 | MDVM premium — certificate inventory not surfaced on Gov. |
-| `DefApiHardwareFirmwareAssessment` | `/api/HardwareFirmwareAssessments` | 404 | MDVM premium — hardware/firmware assessment not surfaced on Gov. |
-
-**Recommended on GCC High:** disable these five functions in the portal (Function App → Functions → \<name\> → toggle **Enabled** to off, or set the app setting `AzureWebJobs.<FunctionName>.Disabled=true`). Leaving them enabled is harmless — they will just log a 404 on every scheduled tick and produce no rows — but disabling them keeps your **Invocations** view clean so real failures stand out.
-
-If you hit a `404 Not Found` on a different `/api/*` endpoint from a GCC High tenant (and the Defender base URL is otherwise correct), the most likely cause is that the capability isn't available in your cloud. Disable that individual function as above and watch the [Defender for Endpoint Gov parity page](https://learn.microsoft.com/en-us/defender-endpoint/gov) for updates. All other datasets in `Functions/datasets.json` are expected to work on Gov.
-
-#### Cloud selection and Defender endpoint
-
-`deploy.ps1` and the Bicep template auto-detect the deployment cloud. The Microsoft Defender API base URL is derived from `environment().name` at deploy time:
-
-| Cloud | Default `Defender__ApiBaseUrl` |
-| --- | --- |
-| `AzureCloud` (commercial) | `https://api.security.microsoft.com` |
-| `AzureUSGovernment` (GCC High) | `https://api-gov.security.microsoft.us` |
-
-You only need to override this when the auto-mapping doesn't cover your environment (a sovereign cloud not in the table, a private preview endpoint, or local testing). Pass the override through `deploy.ps1`:
-
-```powershell
-./scripts/deploy.ps1 `
-  -ResourceGroupName <deployment-resource-group> `
-  -WorkspaceName <sentinel-workspace-name> `
-  -CloudName AzureUSGovernment `
-  -DefenderApiBaseUrl https://api-gov.security.microsoft.us
-```
-
-Or set it directly on an already-deployed app and restart:
-
-```powershell
-az functionapp config appsettings set `
-  --name <function-app-name> `
-  --resource-group <resource-group> `
-  --settings Defender__ApiBaseUrl=https://api-gov.security.microsoft.us
-az functionapp restart --name <function-app-name> --resource-group <resource-group>
-```
-
-The Python clients use this value for both the request host and the OAuth token scope (`<base>/.default`), so changing it switches both in lock-step.
-
-`deploy.ps1` prints the resolved Function App name during preflight. Use that exact value in follow-on commands.
-
-When ready to test:
-
-```powershell
-az functionapp restart --name <function-app-name> --resource-group <deployment-resource-group>
-```
-
-If you need to prevent triggers from running immediately after deployment, stop the app manually:
-
-```powershell
-az functionapp stop --name <function-app-name> --resource-group <deployment-resource-group>
-```
-
-> **Azure Government (GCC High):** Add `-CloudName AzureUSGovernment` to the command above.
+Leaving them enabled is harmless (they log a 404 each tick and produce no rows), but disabling keeps the **Invocations** view clean so real failures stand out. If you hit a `404` on a different `/api/*` endpoint from a Gov tenant, the most likely cause is the same — disable that function and watch the [Defender for Endpoint Gov parity page](https://learn.microsoft.com/en-us/defender-endpoint/gov) for updates.
 
 ### 4) Grant managed identity permissions
 
-> **`deploy.ps1` now runs this step automatically** when the deployer has Entra admin-consent rights (Global Admin / Privileged Role Administrator). It also restarts the Function App so newly-granted tokens take effect immediately, then prints a one-line `healthcheck` URL you can `curl` to verify Defender connectivity in seconds rather than waiting 30 minutes for a scheduled tick. If you don't have admin-consent rights, pass `-SkipPermissions` to `deploy.ps1` and follow **Path B** below.
+> **`deploy.ps1` runs this step automatically** when the deployer has Entra admin-consent rights (Global Admin / Privileged Role Administrator). It also restarts the Function App so newly-granted tokens take effect immediately, then prints a one-line `healthcheck` URL you can `curl` to verify Defender connectivity in seconds rather than waiting 30 minutes for a scheduled tick. **You only need to run `set-managed-identity-defender-permissions.ps1` manually if `deploy.ps1` skipped the grant** — either because you passed `-SkipPermissions`, or because the deployer lacks Entra admin-consent rights and someone with higher privileges needs to grant them out of band.
 
 This step assigns Microsoft Defender / Threat Protection app roles directly to the Function App's system-assigned managed identity. For a managed identity, an app role assignment **is** the admin consent — there is no separate "grant admin consent" button to click afterward. Because of that, the person who runs this step must have Entra ID privileges that allow writing app role assignments on resource service principals (Microsoft Graph, WindowsDefenderATP, Microsoft Threat Protection).
 
@@ -256,14 +223,14 @@ Send the admin:
 
 The admin then runs the same command shown in Path A. The script is idempotent — re-running it only adds missing assignments. Once consent is granted, function runs will succeed on their next scheduled invocation (no redeploy required).
 
-### 4b) Trigger a one-shot test run (optional but recommended)
+### 4b) Trigger a one-shot test run (optional)
 
-> **No functions run at deployment time.** By design, `runOnStartup` is disabled (see callout below). After a fresh `deploy.ps1`, the Function App will sit idle until the **next scheduled NCRONTAB tick** for each timer — or until you trigger a run manually with the script in this section. If you check the **Invocations** tab right after deploy and see zero rows, that is normal.
+> **No functions run at deployment time.** By design, `runOnStartup` is disabled (see callout below). After a fresh `deploy.ps1`, the Function App will sit idle until the **next scheduled NCRONTAB tick** for each timer — or until you trigger a run manually with the script in this section. Seeing zero rows on the **Invocations** tab right after deploy is normal.
 
-After the permissions script completes, you have two options to verify end to end:
+After `deploy.ps1` finishes (and Step 4 if it was run separately), you have two options to verify end to end:
 
-- **Just wait.** Most datasets run on a 30-minute (or shorter) interval, so within ~30 minutes of granting permissions and restarting the Function App, you should see successful invocations on the **Monitor** / **Invocations** tab. The slowest datasets can take up to 1 hour.
-- **Trigger every timer function immediately** to confirm without waiting:
+- **Just wait.** Most datasets run on a 30-minute (or shorter) interval, so within ~30 minutes of granting permissions you should see successful invocations on the **Monitor** / **Invocations** tab. The slowest datasets can take up to 1 hour.
+- **Trigger every timer function immediately** to confirm without waiting — useful for smoke-testing a fresh deploy:
 
 ```powershell
 ./scripts/invoke-functions-once.ps1 `
@@ -449,75 +416,9 @@ Recommended operating model:
 2. Compare the resulting custom tables in Sentinel.
 3. Disable the source family you do not need.
 
-## Table schema and added columns
+Dataset schemas, default schedules, and the `enabled` flag all live in `Functions/datasets.json` — that file is the source of truth. To turn an individual dataset off without redeploying, disable the corresponding function (Function App → **Functions** → \<name\> → **Disable**, or set `AzureWebJobs.<FunctionName>.Disabled=true`).
 
-Each dataset table uses a **native per-dataset schema** with columns that directly match the source API or Advanced Hunting response. There is no envelope or `PayloadJson` wrapper.
-
-The only column added beyond the source fields is:
-
-- `TimeGenerated` — ingestion timestamp (UTC ISO 8601), added by the collector at runtime
-
-Column definitions for each dataset are declared in `Functions/datasets.json` under the `columns` array. These definitions drive both the Log Analytics workspace table schema (via `infra/modules/workspaceTables.bicep`) and the Data Collection Rule stream declarations (via `infra/main.bicep`).
-
-Column type conventions:
-
-- `datetime` — stored as `datetime` in DCR stream declarations; Bicep converts to `dateTime` for the workspace table API
-- `string`, `boolean`, `int`, `real` — used as-is in both the DCR and workspace table
-- `dynamic` — used for source fields that must remain structured JSON objects, such as `AdditionalFields`
-- Arrays from the source API are serialized to JSON strings by the collector and stored as `string` columns unless the dataset schema declares the field as `dynamic`
-
-Schema source of truth: `Functions/datasets.json` — edit the `columns` array for each dataset to add, remove, or retype columns. A Bicep redeploy will update the workspace tables and DCR stream declarations automatically.
-
-## Configuration highlights
-
-Primary configuration is in `Functions/datasets.json` and Function App settings.
-
-Key app settings:
-
-- `DatasetConfigPath`
-- `LogsIngestion__Endpoint`
-- `DcrRuleId_<DatasetName>`
-- `Schedule_<DatasetName>`
-- `AzureWebJobs.<FunctionName>.Disabled` — set to `true` to disable an individual timer-triggered function (or use the **Disable** button in the portal’s **Functions** blade).
-
-Timer format: `second minute hour day month day-of-week`
-
-Example daily schedule: `0 0 1 * * *`
-
-Naming behavior:
-
-- Default Function App name pattern: `<namePrefix>-connector-func-<suffix>`
-- Redeploy updates same instance
-- Override with `-FunctionAppName` when needed
-
-Permission model:
-
-- `scripts/deploy.ps1` handles Azure RBAC for ingestion resources.
-- `set-managed-identity-defender-permissions.ps1` handles Entra API app roles for Defender reads.
-
-Both are required for end-to-end ingestion.
-
-## App setting migration
-
-Use the migration script to rename the legacy `Dataset__<DatasetName>__dcrRuleId` app settings on an existing Function App to the current `DcrRuleId_<DatasetName>` shape that `deploy.ps1` now emits. Only needed for Function Apps that were first deployed with an older version of this repo — fresh deployments already use the new names.
-
-```powershell
-./scripts/migrate-dataset-setting-names.ps1 `
-  -FunctionAppName <function-app-name> `
-  -ResourceGroupName <deployment-resource-group>
-```
-
-Apply changes and optionally remove legacy keys after validation:
-
-```powershell
-./scripts/migrate-dataset-setting-names.ps1 `
-  -FunctionAppName <function-app-name> `
-  -ResourceGroupName <deployment-resource-group> `
-  -Apply `
-  -RemoveLegacy
-```
-
-## Required root files
+## Repository root file description
 
 These files stay in the repo root because Azure Functions tooling and packaging expect them there:
 
@@ -585,6 +486,10 @@ az role assignment list --assignee <function-mi-object-id> --scope /subscription
 ```
 
 5. `HTTPError` raised from `defender_rest_client.py` or `defender_advanced_hunting_client.py`.
+
+6. Defender endpoint availability check.
+
+If a single dataset is consistently failing and the health check doesn't make the cause obvious, use `scripts/Test-DefenderEndpoints.ps1` to probe each Defender REST endpoint directly with the Function App's managed identity token. It returns a per-endpoint pass/fail matrix so you can confirm whether a 404 is environmental (Gov capability gap, see [GCC High / Azure Government availability](#gcc-high--azure-government-availability)) or specific to your tenant.
 
 The clients now include the HTTP status code, request URL, and response body (truncated to 2 KB) in the raised error, so the *real* failure shows up in the Application Insights / Log stream message. Common causes:
 
