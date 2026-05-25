@@ -67,7 +67,7 @@
     },
     {
       "name": "DeviceTvmSoftwareVulnerabilities",
-      "enabled": true,
+      "enabled": false,
       "sourceType": "AdvancedHunting",
       "query": "DeviceTvmSoftwareVulnerabilities",
       "destinationTable": "DeviceTvmSoftwareVulnerabilities_CL",
@@ -191,7 +191,7 @@
     },
     {
       "name": "DeviceTvmSecureConfigurationAssessment",
-      "enabled": true,
+      "enabled": false,
       "sourceType": "AdvancedHunting",
       "query": "DeviceTvmSecureConfigurationAssessment",
       "destinationTable": "DeviceTvmSecureConfigurationAssessment_CL",
@@ -319,7 +319,7 @@
     },
     {
       "name": "DeviceTvmSoftwareEvidenceBeta",
-      "enabled": true,
+      "enabled": false,
       "sourceType": "AdvancedHunting",
       "query": "DeviceTvmSoftwareEvidenceBeta",
       "destinationTable": "DeviceTvmSoftwareEvidenceBeta_CL",
@@ -655,7 +655,7 @@
     },
     {
       "name": "DeviceTvmInfoGatheringKB",
-      "enabled": true,
+      "enabled": false,
       "sourceType": "AdvancedHunting",
       "query": "DeviceTvmInfoGatheringKB",
       "destinationTable": "DeviceTvmInfoGatheringKB_CL",
@@ -695,7 +695,7 @@
     },
     {
       "name": "DefApiSoftwareVulnerabilitiesByMachine",
-      "enabled": true,
+      "enabled": false,
       "sourceType": "DefenderRestApi",
       "endpoint": "/api/machines/SoftwareVulnerabilitiesByMachine",
       "destinationTable": "DefApiSoftwareVulnerabilitiesByMachine_CL",
@@ -806,7 +806,7 @@
     },
     {
       "name": "DefApiMachines",
-      "enabled": true,
+      "enabled": false,
       "sourceType": "DefenderRestApi",
       "endpoint": "/api/machines",
       "destinationTable": "DefApiMachines_CL",
@@ -897,7 +897,7 @@
     },
     {
       "name": "DefApiSoftwareInventoryByMachine",
-      "enabled": true,
+      "enabled": false,
       "sourceType": "DefenderRestApi",
       "endpoint": "/api/machines/SoftwareInventoryByMachine",
       "destinationTable": "DefApiSoftwareInventoryByMachine_CL",
@@ -988,7 +988,7 @@
     },
     {
       "name": "DefApiNonCpeSoftwareInventory",
-      "enabled": true,
+      "enabled": false,
       "sourceType": "DefenderRestApi",
       "endpoint": "/api/SoftwareInventories/NonCpeSoftwareInventory",
       "destinationTable": "DefApiNonCpeSoftwareInventory_CL",
@@ -1047,7 +1047,7 @@
     },
     {
       "name": "DefApiRecommendations",
-      "enabled": true,
+      "enabled": false,
       "sourceType": "DefenderRestApi",
       "endpoint": "/api/recommendations",
       "destinationTable": "DefApiRecommendations_CL",
@@ -1146,7 +1146,7 @@
     },
     {
       "name": "DefApiSecureConfigAssessmentByMachine",
-      "enabled": true,
+      "enabled": false,
       "sourceType": "DefenderRestApi",
       "endpoint": "/api/machines/SecureConfigurationsAssessmentByMachine",
       "destinationTable": "DefApiSecureConfigAssessmentByMachine_CL",
@@ -1217,7 +1217,7 @@
     },
     {
       "name": "DefApiVulnerabilitiesCatalog",
-      "enabled": true,
+      "enabled": false,
       "sourceType": "DefenderRestApi",
       "endpoint": "/api/vulnerabilities",
       "destinationTable": "DefApiVulnerabilitiesCatalog_CL",
@@ -1312,7 +1312,7 @@
     },
     {
       "name": "DefApiBrowserExtensionsInventory",
-      "enabled": true,
+      "enabled": false,
       "sourceType": "DefenderRestApi",
       "endpoint": "/api/BrowserExtensionsInventories",
       "destinationTable": "DefApiBrowserExtensionsInventory_CL",
@@ -1379,7 +1379,7 @@
     },
     {
       "name": "DefApiBrowserExtensionPermissions",
-      "enabled": true,
+      "enabled": false,
       "sourceType": "DefenderRestApi",
       "endpoint": "/api/BrowserExtensionsPermissions",
       "destinationTable": "DefApiBrowserExtensionPermissions_CL",
@@ -1438,7 +1438,7 @@
     },
     {
       "name": "DefApiCertificateInventoryAssessment",
-      "enabled": true,
+      "enabled": false,
       "sourceType": "DefenderRestApi",
       "endpoint": "/api/CertificateInventories",
       "destinationTable": "DefApiCertificateInventoryAssessment_CL",
@@ -1513,7 +1513,7 @@
     },
     {
       "name": "DefApiHardwareFirmwareAssessment",
-      "enabled": true,
+      "enabled": false,
       "sourceType": "DefenderRestApi",
       "endpoint": "/api/HardwareFirmwareAssessments",
       "destinationTable": "DefApiHardwareFirmwareAssessment_CL",
@@ -1564,7 +1564,7 @@
     },
     {
       "name": "NistCveCatalog",
-      "enabled": true,
+      "enabled": false,
       "sourceType": "NistApi",
       "endpoint": "https://services.nvd.nist.gov/rest/json/cves/2.0",
       "destinationTable": "NistCveCatalog_CL",
@@ -1645,7 +1645,7 @@
     },
     {
       "name": "NistCpeConfigurations",
-      "enabled": true,
+      "enabled": false,
       "sourceType": "NistApi",
       "endpoint": "https://services.nvd.nist.gov/rest/json/cves/2.0",
       "destinationTable": "NistCpeConfigurations_CL",
