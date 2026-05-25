@@ -5,7 +5,7 @@
     "_generator": {
       "name": "bicep",
       "version": "0.43.8.12551",
-      "templateHash": "3779646556032390200"
+      "templateHash": "9179928502608763593"
     }
   },
   "parameters": {
@@ -64,6 +64,13 @@
         "description": "Override for the Microsoft Defender API base URL. Leave empty to auto-select based on the deployment cloud: https://api.security.microsoft.com for Azure commercial, https://api-gov.security.microsoft.us for Azure Government. Set explicitly only when targeting a sovereign cloud the auto-mapping does not yet cover, or for testing."
       }
     },
+    "defenderHuntingBaseUrl": {
+      "type": "string",
+      "defaultValue": "",
+      "metadata": {
+        "description": "Override for the Microsoft Graph base URL used by Advanced Hunting (POST /v1.0/security/runHuntingQuery). Leave empty to auto-select: https://graph.microsoft.com on commercial, https://graph.microsoft.us on Azure Government."
+      }
+    },
     "defenderSecurityCenterApiBaseUrl": {
       "type": "string",
       "defaultValue": "",
@@ -85,14 +92,6 @@
         "input": {
           "name": "[variables('datasets')[copyIndex('scheduleAppSettings')].scheduleSetting]",
           "value": "[coalesce(variables('scheduleDefaults')[variables('datasets')[copyIndex('scheduleAppSettings')].scheduleSetting], '0 0 1 * * *')]"
-        }
-      },
-      {
-        "name": "datasetToggleSettings",
-        "count": "[length(variables('datasets'))]",
-        "input": {
-          "name": "[format('Enabled_{0}', variables('datasets')[copyIndex('datasetToggleSettings')].name)]",
-          "value": "[string(bool(variables('datasets')[copyIndex('datasetToggleSettings')].enabled))]"
         }
       }
     ],
@@ -792,13 +791,13 @@
           ]
         },
         {
-          "name": "ApiSoftwareVulnerabilitiesByMachine",
+          "name": "DefApiSoftwareVulnerabilitiesByMachine",
           "enabled": true,
           "sourceType": "DefenderRestApi",
           "endpoint": "/api/machines/SoftwareVulnerabilitiesByMachine",
-          "destinationTable": "ApiSoftwareVulnerabilitiesByMachine_CL",
-          "dcrStreamName": "Custom-ApiSoftwareVulnerabilitiesByMachine",
-          "scheduleSetting": "Schedule_ApiSoftwareVulnerabilitiesByMachine",
+          "destinationTable": "DefApiSoftwareVulnerabilitiesByMachine_CL",
+          "dcrStreamName": "Custom-DefApiSoftwareVulnerabilitiesByMachine",
+          "scheduleSetting": "Schedule_DefApiSoftwareVulnerabilitiesByMachine",
           "ruleShardIndex": 1,
           "batchSize": 500,
           "pageSize": 10000,
@@ -903,13 +902,13 @@
           ]
         },
         {
-          "name": "ApiMachines",
+          "name": "DefApiMachines",
           "enabled": true,
           "sourceType": "DefenderRestApi",
           "endpoint": "/api/machines",
-          "destinationTable": "ApiMachines_CL",
-          "dcrStreamName": "Custom-ApiMachines",
-          "scheduleSetting": "Schedule_ApiMachines",
+          "destinationTable": "DefApiMachines_CL",
+          "dcrStreamName": "Custom-DefApiMachines",
+          "scheduleSetting": "Schedule_DefApiMachines",
           "ruleShardIndex": 1,
           "batchSize": 500,
           "pageSize": 10000,
@@ -994,13 +993,13 @@
           ]
         },
         {
-          "name": "ApiSoftwareInventoryByMachine",
+          "name": "DefApiSoftwareInventoryByMachine",
           "enabled": true,
           "sourceType": "DefenderRestApi",
           "endpoint": "/api/machines/SoftwareInventoryByMachine",
-          "destinationTable": "ApiSoftwareInventoryByMachine_CL",
-          "dcrStreamName": "Custom-ApiSoftwareInventoryByMachine",
-          "scheduleSetting": "Schedule_ApiSoftwareInventoryByMachine",
+          "destinationTable": "DefApiSoftwareInventoryByMachine_CL",
+          "dcrStreamName": "Custom-DefApiSoftwareInventoryByMachine",
+          "scheduleSetting": "Schedule_DefApiSoftwareInventoryByMachine",
           "ruleShardIndex": 1,
           "batchSize": 500,
           "pageSize": 10000,
@@ -1085,13 +1084,13 @@
           ]
         },
         {
-          "name": "ApiNonCpeSoftwareInventory",
+          "name": "DefApiNonCpeSoftwareInventory",
           "enabled": true,
           "sourceType": "DefenderRestApi",
           "endpoint": "/api/SoftwareInventories/NonCpeSoftwareInventory",
-          "destinationTable": "ApiNonCpeSoftwareInventory_CL",
-          "dcrStreamName": "Custom-ApiNonCpeSoftwareInventory",
-          "scheduleSetting": "Schedule_ApiNonCpeSoftwareInventory",
+          "destinationTable": "DefApiNonCpeSoftwareInventory_CL",
+          "dcrStreamName": "Custom-DefApiNonCpeSoftwareInventory",
+          "scheduleSetting": "Schedule_DefApiNonCpeSoftwareInventory",
           "ruleShardIndex": 1,
           "batchSize": 500,
           "pageSize": 10000,
@@ -1144,13 +1143,13 @@
           ]
         },
         {
-          "name": "ApiRecommendations",
+          "name": "DefApiRecommendations",
           "enabled": true,
           "sourceType": "DefenderRestApi",
           "endpoint": "/api/recommendations",
-          "destinationTable": "ApiRecommendations_CL",
-          "dcrStreamName": "Custom-ApiRecommendations",
-          "scheduleSetting": "Schedule_ApiRecommendations",
+          "destinationTable": "DefApiRecommendations_CL",
+          "dcrStreamName": "Custom-DefApiRecommendations",
+          "scheduleSetting": "Schedule_DefApiRecommendations",
           "ruleShardIndex": 1,
           "batchSize": 500,
           "pageSize": 10000,
@@ -1243,13 +1242,13 @@
           ]
         },
         {
-          "name": "ApiSecureConfigurationAssessmentByMachine",
+          "name": "DefApiSecureConfigurationAssessmentByMachine",
           "enabled": true,
           "sourceType": "DefenderRestApi",
           "endpoint": "/api/machines/SecureConfigurationsAssessmentByMachine",
-          "destinationTable": "ApiSecureConfigurationAssessmentByMachine_CL",
-          "dcrStreamName": "Custom-ApiSecureConfigurationAssessmentByMachine",
-          "scheduleSetting": "Schedule_ApiSecureConfigurationAssessmentByMachine",
+          "destinationTable": "DefApiSecureConfigurationAssessmentByMachine_CL",
+          "dcrStreamName": "Custom-DefApiSecureConfigurationAssessmentByMachine",
+          "scheduleSetting": "Schedule_DefApiSecureConfigurationAssessmentByMachine",
           "ruleShardIndex": 1,
           "batchSize": 500,
           "pageSize": 10000,
@@ -1314,13 +1313,13 @@
           ]
         },
         {
-          "name": "ApiVulnerabilitiesCatalog",
+          "name": "DefApiVulnerabilitiesCatalog",
           "enabled": true,
           "sourceType": "DefenderRestApi",
           "endpoint": "/api/vulnerabilities",
-          "destinationTable": "ApiVulnerabilitiesCatalog_CL",
-          "dcrStreamName": "Custom-ApiVulnerabilitiesCatalog",
-          "scheduleSetting": "Schedule_ApiVulnerabilitiesCatalog",
+          "destinationTable": "DefApiVulnerabilitiesCatalog_CL",
+          "dcrStreamName": "Custom-DefApiVulnerabilitiesCatalog",
+          "scheduleSetting": "Schedule_DefApiVulnerabilitiesCatalog",
           "ruleShardIndex": 1,
           "batchSize": 500,
           "pageSize": 10000,
@@ -1409,13 +1408,13 @@
           ]
         },
         {
-          "name": "ApiBrowserExtensionsInventory",
+          "name": "DefApiBrowserExtensionsInventory",
           "enabled": true,
           "sourceType": "DefenderRestApi",
           "endpoint": "/api/BrowserExtensionsInventories",
-          "destinationTable": "ApiBrowserExtensionsInventory_CL",
-          "dcrStreamName": "Custom-ApiBrowserExtensionsInventory",
-          "scheduleSetting": "Schedule_ApiBrowserExtensionsInventory",
+          "destinationTable": "DefApiBrowserExtensionsInventory_CL",
+          "dcrStreamName": "Custom-DefApiBrowserExtensionsInventory",
+          "scheduleSetting": "Schedule_DefApiBrowserExtensionsInventory",
           "ruleShardIndex": 1,
           "batchSize": 500,
           "pageSize": 10000,
@@ -1476,13 +1475,13 @@
           ]
         },
         {
-          "name": "ApiBrowserExtensionPermissions",
+          "name": "DefApiBrowserExtensionPermissions",
           "enabled": true,
           "sourceType": "DefenderRestApi",
           "endpoint": "/api/BrowserExtensionsPermissions",
-          "destinationTable": "ApiBrowserExtensionPermissions_CL",
-          "dcrStreamName": "Custom-ApiBrowserExtensionPermissions",
-          "scheduleSetting": "Schedule_ApiBrowserExtensionPermissions",
+          "destinationTable": "DefApiBrowserExtensionPermissions_CL",
+          "dcrStreamName": "Custom-DefApiBrowserExtensionPermissions",
+          "scheduleSetting": "Schedule_DefApiBrowserExtensionPermissions",
           "ruleShardIndex": 2,
           "batchSize": 500,
           "pageSize": 10000,
@@ -1535,13 +1534,13 @@
           ]
         },
         {
-          "name": "ApiCertificateInventoryAssessment",
+          "name": "DefApiCertificateInventoryAssessment",
           "enabled": true,
           "sourceType": "DefenderRestApi",
           "endpoint": "/api/CertificateInventories",
-          "destinationTable": "ApiCertificateInventoryAssessment_CL",
-          "dcrStreamName": "Custom-ApiCertificateInventoryAssessment",
-          "scheduleSetting": "Schedule_ApiCertificateInventoryAssessment",
+          "destinationTable": "DefApiCertificateInventoryAssessment_CL",
+          "dcrStreamName": "Custom-DefApiCertificateInventoryAssessment",
+          "scheduleSetting": "Schedule_DefApiCertificateInventoryAssessment",
           "ruleShardIndex": 2,
           "batchSize": 500,
           "pageSize": 10000,
@@ -1610,13 +1609,13 @@
           ]
         },
         {
-          "name": "ApiHardwareFirmwareAssessment",
+          "name": "DefApiHardwareFirmwareAssessment",
           "enabled": true,
           "sourceType": "DefenderRestApi",
           "endpoint": "/api/HardwareFirmwareAssessments",
-          "destinationTable": "ApiHardwareFirmwareAssessment_CL",
-          "dcrStreamName": "Custom-ApiHardwareFirmwareAssessment",
-          "scheduleSetting": "Schedule_ApiHardwareFirmwareAssessment",
+          "destinationTable": "DefApiHardwareFirmwareAssessment_CL",
+          "dcrStreamName": "Custom-DefApiHardwareFirmwareAssessment",
+          "scheduleSetting": "Schedule_DefApiHardwareFirmwareAssessment",
           "ruleShardIndex": 2,
           "batchSize": 500,
           "pageSize": 10000,
@@ -1815,17 +1814,17 @@
       "Schedule_DeviceTvmHardwareFirmware": "0 0,30 * * * *",
       "Schedule_DeviceTvmInfoGathering": "0 0,30 * * * *",
       "Schedule_DeviceTvmInfoGatheringKB": "0 0,30 * * * *",
-      "Schedule_ApiSoftwareVulnerabilitiesByMachine": "0 0,30 * * * *",
-      "Schedule_ApiMachines": "0 0,30 * * * *",
-      "Schedule_ApiSoftwareInventoryByMachine": "0 0,30 * * * *",
-      "Schedule_ApiNonCpeSoftwareInventory": "0 0,30 * * * *",
-      "Schedule_ApiRecommendations": "0 0,30 * * * *",
-      "Schedule_ApiSecureConfigurationAssessmentByMachine": "0 0,30 * * * *",
-      "Schedule_ApiVulnerabilitiesCatalog": "0 0,30 * * * *",
-      "Schedule_ApiBrowserExtensionsInventory": "0 0,30 * * * *",
-      "Schedule_ApiBrowserExtensionPermissions": "0 0,30 * * * *",
-      "Schedule_ApiCertificateInventoryAssessment": "0 0,30 * * * *",
-      "Schedule_ApiHardwareFirmwareAssessment": "0 0,30 * * * *",
+      "Schedule_DefApiSoftwareVulnerabilitiesByMachine": "0 0,30 * * * *",
+      "Schedule_DefApiMachines": "0 0,30 * * * *",
+      "Schedule_DefApiSoftwareInventoryByMachine": "0 0,30 * * * *",
+      "Schedule_DefApiNonCpeSoftwareInventory": "0 0,30 * * * *",
+      "Schedule_DefApiRecommendations": "0 0,30 * * * *",
+      "Schedule_DefApiSecureConfigurationAssessmentByMachine": "0 0,30 * * * *",
+      "Schedule_DefApiVulnerabilitiesCatalog": "0 0,30 * * * *",
+      "Schedule_DefApiBrowserExtensionsInventory": "0 0,30 * * * *",
+      "Schedule_DefApiBrowserExtensionPermissions": "0 0,30 * * * *",
+      "Schedule_DefApiCertificateInventoryAssessment": "0 0,30 * * * *",
+      "Schedule_DefApiHardwareFirmwareAssessment": "0 0,30 * * * *",
       "Schedule_NistCveCatalog": "0 0,30 * * * *",
       "Schedule_NistCpeConfigurations": "0 0,30 * * * *"
     },
@@ -1838,6 +1837,8 @@
     "dcrChunkCount": "[int(div(sub(add(length(variables('datasets')), variables('maxDataFlowsPerRule')), 1), variables('maxDataFlowsPerRule')))]",
     "autoDetectedDefenderApiBaseUrl": "[if(equals(environment().name, 'AzureUSGovernment'), 'https://api-gov.security.microsoft.us', 'https://api.security.microsoft.com')]",
     "resolvedDefenderApiBaseUrl": "[if(empty(parameters('defenderApiBaseUrl')), variables('autoDetectedDefenderApiBaseUrl'), parameters('defenderApiBaseUrl'))]",
+    "autoDetectedDefenderHuntingBaseUrl": "[if(equals(environment().name, 'AzureUSGovernment'), 'https://graph.microsoft.us', 'https://graph.microsoft.com')]",
+    "resolvedDefenderHuntingBaseUrl": "[if(empty(parameters('defenderHuntingBaseUrl')), variables('autoDetectedDefenderHuntingBaseUrl'), parameters('defenderHuntingBaseUrl'))]",
     "autoDetectedDefenderSecurityCenterApiBaseUrl": "[if(equals(environment().name, 'AzureUSGovernment'), 'https://api-gov.securitycenter.microsoft.us', 'https://api.security.microsoft.com')]",
     "resolvedDefenderSecurityCenterApiBaseUrl": "[if(empty(parameters('defenderSecurityCenterApiBaseUrl')), variables('autoDetectedDefenderSecurityCenterApiBaseUrl'), parameters('defenderSecurityCenterApiBaseUrl'))]"
   },
@@ -1965,35 +1966,35 @@
       "type": "Microsoft.Web/sites/config",
       "apiVersion": "2023-12-01",
       "name": "[format('{0}/{1}', parameters('functionAppName'), 'appsettings')]",
-      "properties": "[union(toObject(concat(createArray(createObject('name', 'FUNCTIONS_WORKER_RUNTIME', 'value', 'python'), createObject('name', 'FUNCTIONS_EXTENSION_VERSION', 'value', '~4'), createObject('name', 'AzureWebJobsFeatureFlags', 'value', 'EnableWorkerIndexing'), createObject('name', 'WEBSITE_RUN_FROM_PACKAGE', 'value', '1'), createObject('name', 'SCM_DO_BUILD_DURING_DEPLOYMENT', 'value', 'false'), createObject('name', 'PYTHON_ISOLATE_WORKER_DEPENDENCIES', 'value', '1'), createObject('name', 'DatasetConfigPath', 'value', 'Functions/datasets.json'), createObject('name', 'CollectorVersion', 'value', string(variables('datasetConfig').collectorVersion)), createObject('name', 'LogsIngestion__Endpoint', 'value', reference(resourceId('Microsoft.Insights/dataCollectionEndpoints', variables('dceName')), '2023-03-11').logsIngestion.endpoint), createObject('name', 'Defender__ApiBaseUrl', 'value', variables('resolvedDefenderApiBaseUrl')), createObject('name', 'Defender__SecurityCenterApiBaseUrl', 'value', variables('resolvedDefenderSecurityCenterApiBaseUrl')), createObject('name', 'ManagedIdentity__ClientId', 'value', ''), createObject('name', 'Nist__ApiKey', 'value', '')), variables('datasetToggleSettings'), variables('scheduleAppSettings')), lambda('s', lambdaVariables('s').name), lambda('s', lambdaVariables('s').value)), createObject('APPLICATIONINSIGHTS_CONNECTION_STRING', reference(resourceId('Microsoft.Insights/components', variables('appInsightsName')), '2020-02-02').ConnectionString, 'AzureWebJobsStorage__accountName', format('stg{0}', uniqueString(resourceGroup().id, parameters('functionAppName'))), 'AzureWebJobsStorage__credential', 'managedidentity', 'AzureWebJobsStorage__blobServiceUri', format('https://{0}.blob.{1}', format('stg{0}', uniqueString(resourceGroup().id, parameters('functionAppName'))), environment().suffixes.storage), 'AzureWebJobsStorage__queueServiceUri', format('https://{0}.queue.{1}', format('stg{0}', uniqueString(resourceGroup().id, parameters('functionAppName'))), environment().suffixes.storage), 'AzureWebJobsStorage__tableServiceUri', format('https://{0}.table.{1}', format('stg{0}', uniqueString(resourceGroup().id, parameters('functionAppName'))), environment().suffixes.storage), 'DcrRuleId_DeviceTvmSoftwareInventory', reference(resourceId('Microsoft.Insights/dataCollectionRules', format('{0}-{1}', variables('dcrName'), padLeft(string(add(0, 1)), 2, '0'))), '2023-03-11').immutableId, 'DcrRuleId_DeviceTvmSoftwareVulnerabilities', reference(resourceId('Microsoft.Insights/dataCollectionRules', format('{0}-{1}', variables('dcrName'), padLeft(string(add(0, 1)), 2, '0'))), '2023-03-11').immutableId, 'DcrRuleId_DeviceTvmSoftwareVulnerabilitiesKB', reference(resourceId('Microsoft.Insights/dataCollectionRules', format('{0}-{1}', variables('dcrName'), padLeft(string(add(0, 1)), 2, '0'))), '2023-03-11').immutableId, 'DcrRuleId_DeviceTvmSecureConfigurationAssessment', reference(resourceId('Microsoft.Insights/dataCollectionRules', format('{0}-{1}', variables('dcrName'), padLeft(string(add(0, 1)), 2, '0'))), '2023-03-11').immutableId, 'DcrRuleId_DeviceTvmSecureConfigurationAssessmentKB', reference(resourceId('Microsoft.Insights/dataCollectionRules', format('{0}-{1}', variables('dcrName'), padLeft(string(add(0, 1)), 2, '0'))), '2023-03-11').immutableId, 'DcrRuleId_DeviceTvmSoftwareEvidenceBeta', reference(resourceId('Microsoft.Insights/dataCollectionRules', format('{0}-{1}', variables('dcrName'), padLeft(string(add(0, 1)), 2, '0'))), '2023-03-11').immutableId, 'DcrRuleId_DeviceTvmBrowserExtensions', reference(resourceId('Microsoft.Insights/dataCollectionRules', format('{0}-{1}', variables('dcrName'), padLeft(string(add(0, 1)), 2, '0'))), '2023-03-11').immutableId, 'DcrRuleId_DeviceTvmBrowserExtensionsKB', reference(resourceId('Microsoft.Insights/dataCollectionRules', format('{0}-{1}', variables('dcrName'), padLeft(string(add(0, 1)), 2, '0'))), '2023-03-11').immutableId, 'DcrRuleId_DeviceTvmCertificateInfo', reference(resourceId('Microsoft.Insights/dataCollectionRules', format('{0}-{1}', variables('dcrName'), padLeft(string(add(0, 1)), 2, '0'))), '2023-03-11').immutableId, 'DcrRuleId_DeviceTvmHardwareFirmware', reference(resourceId('Microsoft.Insights/dataCollectionRules', format('{0}-{1}', variables('dcrName'), padLeft(string(add(0, 1)), 2, '0'))), '2023-03-11').immutableId, 'DcrRuleId_DeviceTvmInfoGathering', reference(resourceId('Microsoft.Insights/dataCollectionRules', format('{0}-{1}', variables('dcrName'), padLeft(string(add(1, 1)), 2, '0'))), '2023-03-11').immutableId, 'DcrRuleId_DeviceTvmInfoGatheringKB', reference(resourceId('Microsoft.Insights/dataCollectionRules', format('{0}-{1}', variables('dcrName'), padLeft(string(add(1, 1)), 2, '0'))), '2023-03-11').immutableId, 'DcrRuleId_ApiSoftwareVulnerabilitiesByMachine', reference(resourceId('Microsoft.Insights/dataCollectionRules', format('{0}-{1}', variables('dcrName'), padLeft(string(add(1, 1)), 2, '0'))), '2023-03-11').immutableId, 'DcrRuleId_ApiMachines', reference(resourceId('Microsoft.Insights/dataCollectionRules', format('{0}-{1}', variables('dcrName'), padLeft(string(add(1, 1)), 2, '0'))), '2023-03-11').immutableId, 'DcrRuleId_ApiSoftwareInventoryByMachine', reference(resourceId('Microsoft.Insights/dataCollectionRules', format('{0}-{1}', variables('dcrName'), padLeft(string(add(1, 1)), 2, '0'))), '2023-03-11').immutableId, 'DcrRuleId_ApiNonCpeSoftwareInventory', reference(resourceId('Microsoft.Insights/dataCollectionRules', format('{0}-{1}', variables('dcrName'), padLeft(string(add(1, 1)), 2, '0'))), '2023-03-11').immutableId, 'DcrRuleId_ApiRecommendations', reference(resourceId('Microsoft.Insights/dataCollectionRules', format('{0}-{1}', variables('dcrName'), padLeft(string(add(1, 1)), 2, '0'))), '2023-03-11').immutableId, 'DcrRuleId_ApiSecureConfigurationAssessmentByMachine', reference(resourceId('Microsoft.Insights/dataCollectionRules', format('{0}-{1}', variables('dcrName'), padLeft(string(add(1, 1)), 2, '0'))), '2023-03-11').immutableId, 'DcrRuleId_ApiVulnerabilitiesCatalog', reference(resourceId('Microsoft.Insights/dataCollectionRules', format('{0}-{1}', variables('dcrName'), padLeft(string(add(1, 1)), 2, '0'))), '2023-03-11').immutableId, 'DcrRuleId_ApiBrowserExtensionsInventory', reference(resourceId('Microsoft.Insights/dataCollectionRules', format('{0}-{1}', variables('dcrName'), padLeft(string(add(1, 1)), 2, '0'))), '2023-03-11').immutableId, 'DcrRuleId_ApiBrowserExtensionPermissions', reference(resourceId('Microsoft.Insights/dataCollectionRules', format('{0}-{1}', variables('dcrName'), padLeft(string(add(2, 1)), 2, '0'))), '2023-03-11').immutableId, 'DcrRuleId_ApiCertificateInventoryAssessment', reference(resourceId('Microsoft.Insights/dataCollectionRules', format('{0}-{1}', variables('dcrName'), padLeft(string(add(2, 1)), 2, '0'))), '2023-03-11').immutableId, 'DcrRuleId_ApiHardwareFirmwareAssessment', reference(resourceId('Microsoft.Insights/dataCollectionRules', format('{0}-{1}', variables('dcrName'), padLeft(string(add(2, 1)), 2, '0'))), '2023-03-11').immutableId, 'DcrRuleId_NistCveCatalog', reference(resourceId('Microsoft.Insights/dataCollectionRules', format('{0}-{1}', variables('dcrName'), padLeft(string(add(2, 1)), 2, '0'))), '2023-03-11').immutableId, 'DcrRuleId_NistCpeConfigurations', reference(resourceId('Microsoft.Insights/dataCollectionRules', format('{0}-{1}', variables('dcrName'), padLeft(string(add(2, 1)), 2, '0'))), '2023-03-11').immutableId))]",
+      "properties": "[union(toObject(concat(createArray(createObject('name', 'FUNCTIONS_WORKER_RUNTIME', 'value', 'python'), createObject('name', 'FUNCTIONS_EXTENSION_VERSION', 'value', '~4'), createObject('name', 'AzureWebJobsFeatureFlags', 'value', 'EnableWorkerIndexing'), createObject('name', 'WEBSITE_RUN_FROM_PACKAGE', 'value', '1'), createObject('name', 'SCM_DO_BUILD_DURING_DEPLOYMENT', 'value', 'false'), createObject('name', 'PYTHON_ISOLATE_WORKER_DEPENDENCIES', 'value', '1'), createObject('name', 'DatasetConfigPath', 'value', 'Functions/datasets.json'), createObject('name', 'CollectorVersion', 'value', string(variables('datasetConfig').collectorVersion)), createObject('name', 'LogsIngestion__Endpoint', 'value', reference(resourceId('Microsoft.Insights/dataCollectionEndpoints', variables('dceName')), '2023-03-11').logsIngestion.endpoint), createObject('name', 'Defender__HuntingBaseUrl', 'value', variables('resolvedDefenderHuntingBaseUrl')), createObject('name', 'Defender__ApiBaseUrl', 'value', variables('resolvedDefenderApiBaseUrl')), createObject('name', 'Defender__SecurityCenterApiBaseUrl', 'value', variables('resolvedDefenderSecurityCenterApiBaseUrl')), createObject('name', 'ManagedIdentity__ClientId', 'value', ''), createObject('name', 'Nist__ApiKey', 'value', '')), variables('scheduleAppSettings')), lambda('s', lambdaVariables('s').name), lambda('s', lambdaVariables('s').value)), createObject('APPLICATIONINSIGHTS_CONNECTION_STRING', reference(resourceId('Microsoft.Insights/components', variables('appInsightsName')), '2020-02-02').ConnectionString, 'AzureWebJobsStorage__accountName', format('stg{0}', uniqueString(resourceGroup().id, parameters('functionAppName'))), 'AzureWebJobsStorage__credential', 'managedidentity', 'AzureWebJobsStorage__blobServiceUri', format('https://{0}.blob.{1}', format('stg{0}', uniqueString(resourceGroup().id, parameters('functionAppName'))), environment().suffixes.storage), 'AzureWebJobsStorage__queueServiceUri', format('https://{0}.queue.{1}', format('stg{0}', uniqueString(resourceGroup().id, parameters('functionAppName'))), environment().suffixes.storage), 'AzureWebJobsStorage__tableServiceUri', format('https://{0}.table.{1}', format('stg{0}', uniqueString(resourceGroup().id, parameters('functionAppName'))), environment().suffixes.storage), 'DcrRuleId_DeviceTvmSoftwareInventory', reference(resourceId('Microsoft.Insights/dataCollectionRules', format('{0}-{1}', variables('dcrName'), padLeft(string(add(0, 1)), 2, '0'))), '2023-03-11').immutableId, 'DcrRuleId_DeviceTvmSoftwareVulnerabilities', reference(resourceId('Microsoft.Insights/dataCollectionRules', format('{0}-{1}', variables('dcrName'), padLeft(string(add(0, 1)), 2, '0'))), '2023-03-11').immutableId, 'DcrRuleId_DeviceTvmSoftwareVulnerabilitiesKB', reference(resourceId('Microsoft.Insights/dataCollectionRules', format('{0}-{1}', variables('dcrName'), padLeft(string(add(0, 1)), 2, '0'))), '2023-03-11').immutableId, 'DcrRuleId_DeviceTvmSecureConfigurationAssessment', reference(resourceId('Microsoft.Insights/dataCollectionRules', format('{0}-{1}', variables('dcrName'), padLeft(string(add(0, 1)), 2, '0'))), '2023-03-11').immutableId, 'DcrRuleId_DeviceTvmSecureConfigurationAssessmentKB', reference(resourceId('Microsoft.Insights/dataCollectionRules', format('{0}-{1}', variables('dcrName'), padLeft(string(add(0, 1)), 2, '0'))), '2023-03-11').immutableId, 'DcrRuleId_DeviceTvmSoftwareEvidenceBeta', reference(resourceId('Microsoft.Insights/dataCollectionRules', format('{0}-{1}', variables('dcrName'), padLeft(string(add(0, 1)), 2, '0'))), '2023-03-11').immutableId, 'DcrRuleId_DeviceTvmBrowserExtensions', reference(resourceId('Microsoft.Insights/dataCollectionRules', format('{0}-{1}', variables('dcrName'), padLeft(string(add(0, 1)), 2, '0'))), '2023-03-11').immutableId, 'DcrRuleId_DeviceTvmBrowserExtensionsKB', reference(resourceId('Microsoft.Insights/dataCollectionRules', format('{0}-{1}', variables('dcrName'), padLeft(string(add(0, 1)), 2, '0'))), '2023-03-11').immutableId, 'DcrRuleId_DeviceTvmCertificateInfo', reference(resourceId('Microsoft.Insights/dataCollectionRules', format('{0}-{1}', variables('dcrName'), padLeft(string(add(0, 1)), 2, '0'))), '2023-03-11').immutableId, 'DcrRuleId_DeviceTvmHardwareFirmware', reference(resourceId('Microsoft.Insights/dataCollectionRules', format('{0}-{1}', variables('dcrName'), padLeft(string(add(0, 1)), 2, '0'))), '2023-03-11').immutableId, 'DcrRuleId_DeviceTvmInfoGathering', reference(resourceId('Microsoft.Insights/dataCollectionRules', format('{0}-{1}', variables('dcrName'), padLeft(string(add(1, 1)), 2, '0'))), '2023-03-11').immutableId, 'DcrRuleId_DeviceTvmInfoGatheringKB', reference(resourceId('Microsoft.Insights/dataCollectionRules', format('{0}-{1}', variables('dcrName'), padLeft(string(add(1, 1)), 2, '0'))), '2023-03-11').immutableId, 'DcrRuleId_ApiSoftwareVulnerabilitiesByMachine', reference(resourceId('Microsoft.Insights/dataCollectionRules', format('{0}-{1}', variables('dcrName'), padLeft(string(add(1, 1)), 2, '0'))), '2023-03-11').immutableId, 'DcrRuleId_ApiMachines', reference(resourceId('Microsoft.Insights/dataCollectionRules', format('{0}-{1}', variables('dcrName'), padLeft(string(add(1, 1)), 2, '0'))), '2023-03-11').immutableId, 'DcrRuleId_ApiSoftwareInventoryByMachine', reference(resourceId('Microsoft.Insights/dataCollectionRules', format('{0}-{1}', variables('dcrName'), padLeft(string(add(1, 1)), 2, '0'))), '2023-03-11').immutableId, 'DcrRuleId_ApiNonCpeSoftwareInventory', reference(resourceId('Microsoft.Insights/dataCollectionRules', format('{0}-{1}', variables('dcrName'), padLeft(string(add(1, 1)), 2, '0'))), '2023-03-11').immutableId, 'DcrRuleId_ApiRecommendations', reference(resourceId('Microsoft.Insights/dataCollectionRules', format('{0}-{1}', variables('dcrName'), padLeft(string(add(1, 1)), 2, '0'))), '2023-03-11').immutableId, 'DcrRuleId_ApiSecureConfigurationAssessmentByMachine', reference(resourceId('Microsoft.Insights/dataCollectionRules', format('{0}-{1}', variables('dcrName'), padLeft(string(add(1, 1)), 2, '0'))), '2023-03-11').immutableId, 'DcrRuleId_ApiVulnerabilitiesCatalog', reference(resourceId('Microsoft.Insights/dataCollectionRules', format('{0}-{1}', variables('dcrName'), padLeft(string(add(1, 1)), 2, '0'))), '2023-03-11').immutableId, 'DcrRuleId_ApiBrowserExtensionsInventory', reference(resourceId('Microsoft.Insights/dataCollectionRules', format('{0}-{1}', variables('dcrName'), padLeft(string(add(1, 1)), 2, '0'))), '2023-03-11').immutableId, 'DcrRuleId_ApiBrowserExtensionPermissions', reference(resourceId('Microsoft.Insights/dataCollectionRules', format('{0}-{1}', variables('dcrName'), padLeft(string(add(2, 1)), 2, '0'))), '2023-03-11').immutableId, 'DcrRuleId_ApiCertificateInventoryAssessment', reference(resourceId('Microsoft.Insights/dataCollectionRules', format('{0}-{1}', variables('dcrName'), padLeft(string(add(2, 1)), 2, '0'))), '2023-03-11').immutableId, 'DcrRuleId_ApiHardwareFirmwareAssessment', reference(resourceId('Microsoft.Insights/dataCollectionRules', format('{0}-{1}', variables('dcrName'), padLeft(string(add(2, 1)), 2, '0'))), '2023-03-11').immutableId, 'DcrRuleId_NistCveCatalog', reference(resourceId('Microsoft.Insights/dataCollectionRules', format('{0}-{1}', variables('dcrName'), padLeft(string(add(2, 1)), 2, '0'))), '2023-03-11').immutableId, 'DcrRuleId_NistCpeConfigurations', reference(resourceId('Microsoft.Insights/dataCollectionRules', format('{0}-{1}', variables('dcrName'), padLeft(string(add(2, 1)), 2, '0'))), '2023-03-11').immutableId))]",
       "dependsOn": [
         "[resourceId('Microsoft.Insights/components', variables('appInsightsName'))]",
         "[resourceId('Microsoft.Insights/dataCollectionEndpoints', variables('dceName'))]",
+        "[resourceId('Microsoft.Insights/dataCollectionRules', format('{0}-{1}', variables('dcrName'), padLeft(string(add(0, 1)), 2, '0')))]",
+        "[resourceId('Microsoft.Insights/dataCollectionRules', format('{0}-{1}', variables('dcrName'), padLeft(string(add(2, 1)), 2, '0')))]",
+        "[resourceId('Microsoft.Insights/dataCollectionRules', format('{0}-{1}', variables('dcrName'), padLeft(string(add(2, 1)), 2, '0')))]",
         "[resourceId('Microsoft.Insights/dataCollectionRules', format('{0}-{1}', variables('dcrName'), padLeft(string(add(1, 1)), 2, '0')))]",
+        "[resourceId('Microsoft.Insights/dataCollectionRules', format('{0}-{1}', variables('dcrName'), padLeft(string(add(1, 1)), 2, '0')))]",
+        "[resourceId('Microsoft.Insights/dataCollectionRules', format('{0}-{1}', variables('dcrName'), padLeft(string(add(1, 1)), 2, '0')))]",
+        "[resourceId('Microsoft.Insights/dataCollectionRules', format('{0}-{1}', variables('dcrName'), padLeft(string(add(0, 1)), 2, '0')))]",
         "[resourceId('Microsoft.Insights/dataCollectionRules', format('{0}-{1}', variables('dcrName'), padLeft(string(add(0, 1)), 2, '0')))]",
         "[resourceId('Microsoft.Insights/dataCollectionRules', format('{0}-{1}', variables('dcrName'), padLeft(string(add(1, 1)), 2, '0')))]",
         "[resourceId('Microsoft.Insights/dataCollectionRules', format('{0}-{1}', variables('dcrName'), padLeft(string(add(0, 1)), 2, '0')))]",
         "[resourceId('Microsoft.Insights/dataCollectionRules', format('{0}-{1}', variables('dcrName'), padLeft(string(add(1, 1)), 2, '0')))]",
         "[resourceId('Microsoft.Insights/dataCollectionRules', format('{0}-{1}', variables('dcrName'), padLeft(string(add(2, 1)), 2, '0')))]",
-        "[resourceId('Microsoft.Insights/dataCollectionRules', format('{0}-{1}', variables('dcrName'), padLeft(string(add(2, 1)), 2, '0')))]",
-        "[resourceId('Microsoft.Insights/dataCollectionRules', format('{0}-{1}', variables('dcrName'), padLeft(string(add(0, 1)), 2, '0')))]",
-        "[resourceId('Microsoft.Insights/dataCollectionRules', format('{0}-{1}', variables('dcrName'), padLeft(string(add(1, 1)), 2, '0')))]",
-        "[resourceId('Microsoft.Insights/dataCollectionRules', format('{0}-{1}', variables('dcrName'), padLeft(string(add(0, 1)), 2, '0')))]",
-        "[resourceId('Microsoft.Insights/dataCollectionRules', format('{0}-{1}', variables('dcrName'), padLeft(string(add(1, 1)), 2, '0')))]",
-        "[resourceId('Microsoft.Insights/dataCollectionRules', format('{0}-{1}', variables('dcrName'), padLeft(string(add(2, 1)), 2, '0')))]",
-        "[resourceId('Microsoft.Insights/dataCollectionRules', format('{0}-{1}', variables('dcrName'), padLeft(string(add(1, 1)), 2, '0')))]",
-        "[resourceId('Microsoft.Insights/dataCollectionRules', format('{0}-{1}', variables('dcrName'), padLeft(string(add(0, 1)), 2, '0')))]",
         "[resourceId('Microsoft.Insights/dataCollectionRules', format('{0}-{1}', variables('dcrName'), padLeft(string(add(1, 1)), 2, '0')))]",
         "[resourceId('Microsoft.Insights/dataCollectionRules', format('{0}-{1}', variables('dcrName'), padLeft(string(add(0, 1)), 2, '0')))]",
         "[resourceId('Microsoft.Insights/dataCollectionRules', format('{0}-{1}', variables('dcrName'), padLeft(string(add(0, 1)), 2, '0')))]",
-        "[resourceId('Microsoft.Insights/dataCollectionRules', format('{0}-{1}', variables('dcrName'), padLeft(string(add(0, 1)), 2, '0')))]",
-        "[resourceId('Microsoft.Insights/dataCollectionRules', format('{0}-{1}', variables('dcrName'), padLeft(string(add(2, 1)), 2, '0')))]",
         "[resourceId('Microsoft.Insights/dataCollectionRules', format('{0}-{1}', variables('dcrName'), padLeft(string(add(1, 1)), 2, '0')))]",
-        "[resourceId('Microsoft.Insights/dataCollectionRules', format('{0}-{1}', variables('dcrName'), padLeft(string(add(0, 1)), 2, '0')))]",
         "[resourceId('Microsoft.Insights/dataCollectionRules', format('{0}-{1}', variables('dcrName'), padLeft(string(add(1, 1)), 2, '0')))]",
-        "[resourceId('Microsoft.Insights/dataCollectionRules', format('{0}-{1}', variables('dcrName'), padLeft(string(add(0, 1)), 2, '0')))]",
         "[resourceId('Microsoft.Insights/dataCollectionRules', format('{0}-{1}', variables('dcrName'), padLeft(string(add(1, 1)), 2, '0')))]",
         "[resourceId('Microsoft.Insights/dataCollectionRules', format('{0}-{1}', variables('dcrName'), padLeft(string(add(2, 1)), 2, '0')))]",
+        "[resourceId('Microsoft.Insights/dataCollectionRules', format('{0}-{1}', variables('dcrName'), padLeft(string(add(1, 1)), 2, '0')))]",
+        "[resourceId('Microsoft.Insights/dataCollectionRules', format('{0}-{1}', variables('dcrName'), padLeft(string(add(0, 1)), 2, '0')))]",
+        "[resourceId('Microsoft.Insights/dataCollectionRules', format('{0}-{1}', variables('dcrName'), padLeft(string(add(2, 1)), 2, '0')))]",
+        "[resourceId('Microsoft.Insights/dataCollectionRules', format('{0}-{1}', variables('dcrName'), padLeft(string(add(0, 1)), 2, '0')))]",
+        "[resourceId('Microsoft.Insights/dataCollectionRules', format('{0}-{1}', variables('dcrName'), padLeft(string(add(0, 1)), 2, '0')))]",
+        "[resourceId('Microsoft.Insights/dataCollectionRules', format('{0}-{1}', variables('dcrName'), padLeft(string(add(0, 1)), 2, '0')))]",
         "[resourceId('Microsoft.Web/sites', parameters('functionAppName'))]",
         "[resourceId('Microsoft.Storage/storageAccounts', format('stg{0}', uniqueString(resourceGroup().id, parameters('functionAppName'))))]"
       ]

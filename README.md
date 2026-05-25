@@ -133,11 +133,11 @@ Observed on GCC High during testing (confirmed via `/api/healthcheck?full=1` —
 
 | Dataset | Endpoint | Status on GCC High | Notes |
 | --- | --- | --- | --- |
-| `ApiNonCpeSoftwareInventory` | `/api/SoftwareInventories/NonCpeSoftwareInventory` | 404 | MDVM premium — non-CPE software inventory not surfaced on Gov. |
-| `ApiBrowserExtensionsInventory` | `/api/BrowserExtensionsInventories` | 404 | MDVM premium — browser extensions assessment not surfaced on Gov. |
-| `ApiBrowserExtensionPermissions` | `/api/BrowserExtensionsPermissions` | 404 | Same as above. |
-| `ApiCertificateInventoryAssessment` | `/api/CertificateInventories` | 404 | MDVM premium — certificate inventory not surfaced on Gov. |
-| `ApiHardwareFirmwareAssessment` | `/api/HardwareFirmwareAssessments` | 404 | MDVM premium — hardware/firmware assessment not surfaced on Gov. |
+| `DefApiNonCpeSoftwareInventory` | `/api/SoftwareInventories/NonCpeSoftwareInventory` | 404 | MDVM premium — non-CPE software inventory not surfaced on Gov. |
+| `DefApiBrowserExtensionsInventory` | `/api/BrowserExtensionsInventories` | 404 | MDVM premium — browser extensions assessment not surfaced on Gov. |
+| `DefApiBrowserExtensionPermissions` | `/api/BrowserExtensionsPermissions` | 404 | Same as above. |
+| `DefApiCertificateInventoryAssessment` | `/api/CertificateInventories` | 404 | MDVM premium — certificate inventory not surfaced on Gov. |
+| `DefApiHardwareFirmwareAssessment` | `/api/HardwareFirmwareAssessments` | 404 | MDVM premium — hardware/firmware assessment not surfaced on Gov. |
 
 **Recommended on GCC High:** disable these five functions in the portal (Function App → Functions → \<name\> → toggle **Enabled** to off, or set the app setting `AzureWebJobs.<FunctionName>.Disabled=true`). Leaving them enabled is harmless — they will just log a 404 on every scheduled tick and produce no rows — but disabling them keeps your **Invocations** view clean so real failures stand out.
 

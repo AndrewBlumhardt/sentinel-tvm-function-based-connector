@@ -31,17 +31,17 @@ This folder contains the Azure Function timer-trigger entry points.
 
 ### Defender REST dataset triggers
 
-- `api_machines.py`
-- `api_software_vulnerabilities_by_machine.py`
-- `api_software_inventory_by_machine.py`
-- `api_non_cpe_software_inventory.py`
-- `api_recommendations.py`
-- `api_secure_configuration_assessment_by_machine.py`
-- `api_vulnerabilities_catalog.py`
-- `api_browser_extensions_inventory.py`
-- `api_browser_extension_permissions.py`
-- `api_certificate_inventory_assessment.py`
-- `api_hardware_firmware_assessment.py`
+- `def_api_machines.py`
+- `def_api_software_vulnerabilities_by_machine.py`
+- `def_api_software_inventory_by_machine.py`
+- `def_api_non_cpe_software_inventory.py`
+- `def_api_recommendations.py`
+- `def_api_secure_configuration_assessment_by_machine.py`
+- `def_api_vulnerabilities_catalog.py`
+- `def_api_browser_extensions_inventory.py`
+- `def_api_browser_extension_permissions.py`
+- `def_api_certificate_inventory_assessment.py`
+- `def_api_hardware_firmware_assessment.py`
 
 ### NIST dataset triggers
 
