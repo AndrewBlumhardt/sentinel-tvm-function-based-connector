@@ -36,7 +36,7 @@ This folder contains the Azure Function timer-trigger entry points.
 - `def_api_software_inventory_by_machine.py`
 - `def_api_non_cpe_software_inventory.py`
 - `def_api_recommendations.py`
-- `def_api_secure_configuration_assessment_by_machine.py`
+- `def_api_secure_config_assessment_by_machine.py`
 - `def_api_vulnerabilities_catalog.py`
 - `def_api_browser_extensions_inventory.py`
 - `def_api_browser_extension_permissions.py`

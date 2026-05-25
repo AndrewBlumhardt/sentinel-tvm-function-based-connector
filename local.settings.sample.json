@@ -25,7 +25,7 @@
     "Schedule_DefApiSoftwareInventoryByMachine": "0 10 3 * * *",
     "Schedule_DefApiNonCpeSoftwareInventory": "0 20 3 * * *",
     "Schedule_DefApiRecommendations": "0 30 3 * * *",
-    "Schedule_DefApiSecureConfigurationAssessmentByMachine": "0 40 3 * * *",
+    "Schedule_DefApiSecureConfigAssessmentByMachine": "0 40 3 * * *",
     "Schedule_DefApiVulnerabilitiesCatalog": "0 50 3 * * *",
     "Schedule_DefApiBrowserExtensionsInventory": "0 0 4 * * *",
     "Schedule_DefApiBrowserExtensionPermissions": "0 10 4 * * *",

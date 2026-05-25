@@ -20,7 +20,7 @@ var scheduleDefaults = {
   Schedule_DefApiSoftwareInventoryByMachine: '0 0,30 * * * *'
   Schedule_DefApiNonCpeSoftwareInventory: '0 0,30 * * * *'
   Schedule_DefApiRecommendations: '0 0,30 * * * *'
-  Schedule_DefApiSecureConfigurationAssessmentByMachine: '0 0,30 * * * *'
+  Schedule_DefApiSecureConfigAssessmentByMachine: '0 0,30 * * * *'
   Schedule_DefApiVulnerabilitiesCatalog: '0 0,30 * * * *'
   Schedule_DefApiBrowserExtensionsInventory: '0 0,30 * * * *'
   Schedule_DefApiBrowserExtensionPermissions: '0 0,30 * * * *'
@@ -299,7 +299,7 @@ resource functionAppSettings 'Microsoft.Web/sites/config@2023-12-01' = {
       DcrRuleId_DefApiSoftwareInventoryByMachine: dataCollectionRules[1].properties.immutableId
       DcrRuleId_DefApiNonCpeSoftwareInventory: dataCollectionRules[1].properties.immutableId
       DcrRuleId_DefApiRecommendations: dataCollectionRules[1].properties.immutableId
-      DcrRuleId_DefApiSecureConfigurationAssessmentByMachine: dataCollectionRules[1].properties.immutableId
+      DcrRuleId_DefApiSecureConfigAssessmentByMachine: dataCollectionRules[1].properties.immutableId
       DcrRuleId_DefApiVulnerabilitiesCatalog: dataCollectionRules[1].properties.immutableId
       DcrRuleId_DefApiBrowserExtensionsInventory: dataCollectionRules[1].properties.immutableId
       DcrRuleId_DefApiBrowserExtensionPermissions: dataCollectionRules[2].properties.immutableId

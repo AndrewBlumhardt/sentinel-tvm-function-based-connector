@@ -24,7 +24,11 @@ resource customTables 'Microsoft.OperationalInsights/workspaces/tables@2023-09-0
     }
     // -1 = inherit the workspace's default retention (interactive + total).
     // Per Microsoft docs for Microsoft.OperationalInsights/workspaces/tables.
+    // Bicep linter (BCP328) flags -1 because the OpenAPI schema declares min=4,
+    // but the ARM API accepts -1 as the documented "inherit" sentinel.
+    #disable-next-line BCP328
     retentionInDays: -1
+    #disable-next-line BCP328
     totalRetentionInDays: -1
   }
 }]

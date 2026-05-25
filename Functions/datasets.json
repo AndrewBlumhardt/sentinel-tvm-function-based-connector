@@ -1145,13 +1145,13 @@
       ]
     },
     {
-      "name": "DefApiSecureConfigurationAssessmentByMachine",
+      "name": "DefApiSecureConfigAssessmentByMachine",
       "enabled": true,
       "sourceType": "DefenderRestApi",
       "endpoint": "/api/machines/SecureConfigurationsAssessmentByMachine",
-      "destinationTable": "DefApiSecureConfigurationAssessmentByMachine_CL",
-      "dcrStreamName": "Custom-DefApiSecureConfigurationAssessmentByMachine",
-      "scheduleSetting": "Schedule_DefApiSecureConfigurationAssessmentByMachine",
+      "destinationTable": "DefApiSecureConfigAssessmentByMachine_CL",
+      "dcrStreamName": "Custom-DefApiSecureConfigAssessmentByMachine",
+      "scheduleSetting": "Schedule_DefApiSecureConfigAssessmentByMachine",
       "ruleShardIndex": 1,
       "batchSize": 500,
       "pageSize": 10000,
