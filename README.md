@@ -385,15 +385,57 @@ az monitor app-insights query `
 
 ## Dataset coverage
 
-Detailed per-dataset mappings are defined in `Functions/datasets.json`.
+Detailed per-dataset mappings live in `Functions/datasets.json` (the source of truth). The table below captures the **recommended starting configuration** — which datasets to enable by default, which to leave off, and why. Names use the current `DefApi*` (Defender REST) and `DeviceTvm*` (Graph Advanced Hunting) prefixes.
 
-README keeps this section intentionally high-level:
+At a glance:
 
-- Advanced Hunting TVM datasets: enabled by default.
-- Defender REST API datasets: optional (mostly disabled by default).
-- NIST enrichment datasets: optional.
+- Advanced Hunting `DeviceTvm*` datasets: the recommended baseline. Enabled by default.
+- Defender REST `DefApi*` datasets: optional. Most are disabled by default — some duplicate TVM data, a few produce very large volumes, and several are unavailable in GCC High / Gov.
+- `Nist*` enrichment datasets: optional. Generally disabled by default; better suited to on-demand lookups than continuous ingestion.
 
-If you need table-level mapping details, use `Functions/datasets.json` as the source of truth.
+| Table                                           | Source                         | Summary                                                                                                                              | Recommendation                                                                                           | Frequency     | Default  |
+| ----------------------------------------------- | ------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------- | ------------- | -------- |
+| DefApiBrowserExtensionPermissions_CL            | Defender for Endpoint REST API | Browser extension permissions and permission risk information. Conceptually similar to `DeviceTvmBrowserExtensionsKB_CL`.            | Prefer TVM equivalent. API endpoint unavailable in GCC High / Gov environments.                          | Weekly        | Disabled |
+| DefApiBrowserExtensionsInventory_CL             | Defender for Endpoint REST API | Browser extension inventory per device. Similar to `DeviceTvmBrowserExtensions_CL`.                                                  | Prefer TVM equivalent. API endpoint unavailable in GCC High / Gov environments.                          | Weekly        | Disabled |
+| DeviceTvmBrowserExtensions_CL                   | Graph Advanced Hunting (KQL)   | Extension ID, name, version, browser, risk, active state per device.                                                                 | Recommended primary browser extension inventory table.                                                   | Weekly        | Enabled  |
+| DeviceTvmBrowserExtensionsKB_CL                 | Graph Advanced Hunting (KQL)   | Extension details plus descriptions and permission risk information.                                                                 | Recommended companion reference table with richer metadata.                                              | Weekly        | Enabled  |
+| DefApiCertificateInventoryAssessment_CL         | Defender for Endpoint REST API | Certificate inventory assessment per device. Similar to `DeviceTvmCertificateInfo_CL`.                                               | Prefer TVM equivalent. API endpoint unavailable in GCC High / Gov environments.                          | Weekly        | Disabled |
+| DeviceTvmCertificateInfo_CL                     | Graph Advanced Hunting (KQL)   | Basic certificate information per device.                                                                                            | Recommended lightweight enrichment table.                                                                | Weekly        | Enabled  |
+| DefApiHardwareFirmwareAssessment_CL             | Defender for Endpoint REST API | Hardware and firmware assessment data per device.                                                                                    | Prefer TVM equivalent. API endpoint unavailable in GCC High / Gov environments.                          | Weekly        | Disabled |
+| DeviceTvmHardwareFirmware_CL                    | Graph Advanced Hunting (KQL)   | Limited hardware inventory such as processor and firmware details per device.                                                        | Useful enrichment dataset with low change frequency.                                                     | Weekly        | Enabled  |
+| DefApiNonCpeSoftwareInventory_CL                | Defender for Endpoint REST API | Software inventory for products without CPE mappings.                                                                                | Unique API-only dataset. Useful supplemental inventory source.                                           | Weekly        | Enabled  |
+| DefApiMachines_CL                               | Defender for Endpoint REST API | Lightweight device inventory snapshot similar to native `DeviceInfo`.                                                                | Not recommended. Redundant with richer native device inventory tables already available in Defender XDR. | Disabled      | Disabled |
+| DefApiRecommendations_CL                        | Defender for Endpoint REST API | Top-level recommendations list with minimal detail and no device context.                                                            | Optional low-value reference table.                                                                      | Weekly        | Disabled |
+| DefApiSecureConfigurationAssessmentByMachine_CL | Defender for Endpoint REST API | Extremely granular secure configuration data. ~25k records per device and difficult to interpret.                                    | Not recommended due to excessive volume and limited operational value.                                   | Disabled      | Disabled |
+| DeviceTvmSecureConfigurationAssessment_CL       | Graph Advanced Hunting (KQL)   | Device-level configuration assessment data, primarily configuration IDs.                                                             | Moderate value but limited detail on its own. Often requires joins.                                      | Daily         | Enabled  |
+| DeviceTvmSecureConfigurationAssessmentKB_CL     | Graph Advanced Hunting (KQL)   | Detailed recommendation and configuration reference data.                                                                            | Recommended primary secure configuration assessment table. Most useful table in this category.           | Daily         | Enabled  |
+| DefApiSoftwareInventoryByMachine_CL             | Defender for Endpoint REST API | Installed software inventory with registry key and first-seen details.                                                              | Slightly richer than TVM equivalent. Useful optional replacement for TVM inventory.                      | Daily         | Disabled |
+| DeviceTvmSoftwareInventory_CL                   | Graph Advanced Hunting (KQL)   | Installed software inventory per device.                                                                                             | Recommended baseline software inventory table.                                                           | Daily         | Enabled  |
+| DefApiSoftwareVulnerabilitiesByMachine_CL       | Defender for Endpoint REST API | Every known CVE for every installed software instance per device. Extremely large dataset.                                           | Not recommended for regular ingestion due to excessive size.                                             | Disabled      | Disabled |
+| DefApiVulnerabilitiesCatalog_CL                 | Defender for Endpoint REST API | Catalog of all known CVEs across observed software inventory. Includes descriptions and metadata.                                    | Optional reference dataset for joins or enrichment.                                                      | Every 10 Days | Disabled |
+| DeviceTvmSoftwareVulnerabilities_CL             | Graph Advanced Hunting (KQL)   | Active CVEs per device with useful operational detail.                                                                               | Recommended primary vulnerability assessment dataset.                                                    | Daily         | Enabled  |
+| DeviceTvmSoftwareVulnerabilitiesKB_CL           | Graph Advanced Hunting (KQL)   | Top-level CVE catalog and vulnerability reference table.                                                                             | Recommended companion vulnerability reference dataset.                                                   | Daily         | Enabled  |
+| DeviceTvmSoftwareEvidenceBeta_CL                | Graph Advanced Hunting (KQL)   | Active vulnerabilities plus software evidence such as disk and registry paths.                                                       | Optional enrichment dataset with useful investigation context.                                           | Daily         | Disabled |
+| DeviceTvmInfoGathering_CL                       | Graph Advanced Hunting (KQL)   | Supplemental device assessment information including AV scan results. Small dataset.                                                 | Recommended lightweight enrichment dataset.                                                              | Daily         | Enabled  |
+| DeviceTvmInfoGatheringKB_CL                     | Graph Advanced Hunting (KQL)   | Reference table for `FieldName` descriptions used in `DeviceTvmInfoGathering_CL`.                                                    | Optional lookup/reference dataset for dashboards and workbook enrichment.                                | Weekly        | Disabled |
+| NistCpeConfigurations_CL                        | NIST Reference Dataset         | Extremely large CVE/CPE reference list with cryptic short-form configuration descriptors.                                            | Strongly discouraged due to ingestion cost and limited standalone value.                                 | Every 10 Days | Disabled |
+| NistCveCatalog_CL                               | NIST Reference Dataset         | Detailed NIST CVE catalog with larger record size and descriptive metadata.                                                          | Better suited for external enrichment or URL/API lookups than ingestion.                                 | Every 10 Days | Disabled |
+
+### Why some Defender REST datasets are disabled by default
+
+A handful of the `DefApi*` tables generate disproportionate ingestion volume relative to the operational value they add on top of the `DeviceTvm*` equivalents. The two snapshots below are taken from a representative deployment and illustrate the pattern.
+
+Billable table size, top tables (30-minute window):
+
+![Billable table size by table](images/volume.png)
+
+Record counts per table from a single collection cycle:
+
+![Record counts per table](images/volume2.png)
+
+`DefApiSoftwareVulnerabilitiesByMachine_CL`, `DefApiSoftwareInventoryByMachine_CL`, and `DefApiSecureConfigurationAssessmentByMachine_CL` consistently dominate both record count and on-disk size. The `DeviceTvm*` siblings cover the same operational use cases at a fraction of the volume — hence the defaults in the table above.
+
+Note: table names in the screenshots reflect the older `Api*` prefix from earlier deployments. New deployments use `DefApi*`; the data shape is unchanged.
 
 ## Source comparison and operating model
 

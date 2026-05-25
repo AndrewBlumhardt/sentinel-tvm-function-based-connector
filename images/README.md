@@ -6,7 +6,8 @@ This folder stores visual references used by documentation.
 
 - `resources.png`: Example Azure portal resource view after deployment.
 - `variables.png`: Example variable values used in post-deployment checks.
-- `Connect.png`: Screenshot reference for connector context in docs.
+- `volume.png`: Workspace billable-table size snapshot (30-minute window) used in the root README to illustrate which `DefApi*` datasets dominate ingestion volume.
+- `volume2.png`: Per-table record counts from a single collection cycle, paired with `volume.png` to motivate the recommended defaults in the dataset coverage table.
 - `.gitkeep`: Keeps the folder in source control even if images are removed in future cleanups.
 
 ## Notes
