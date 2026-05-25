@@ -157,20 +157,38 @@ def healthcheck(req: func.HttpRequest) -> func.HttpResponse:
         results.append(probe)
 
     # 3) Optionally probe every configured dataset endpoint.
-    if full and rest_token:
-        seen: set[str] = set()
-        for dataset in datasets:
-            endpoint = (dataset.endpoint or "").strip()
-            if not endpoint or not endpoint.startswith("/"):
-                continue
-            url = f"{security_center_base}{endpoint}"
-            if url in seen:
-                continue
-            seen.add(url)
-            probe = _probe("GET", url, rest_token, params={"$top": 1})
-            probe["surface"] = "dataset_endpoint"
-            probe["dataset"] = dataset.name
-            results.append(probe)
+    if full:
+        # 3a) REST dataset endpoints (Api*).
+        if rest_token:
+            seen: set[str] = set()
+            for dataset in datasets:
+                endpoint = (dataset.endpoint or "").strip()
+                if not endpoint or not endpoint.startswith("/"):
+                    continue
+                url = f"{security_center_base}{endpoint}"
+                if url in seen:
+                    continue
+                seen.add(url)
+                probe = _probe("GET", url, rest_token, params={"$top": 1})
+                probe["surface"] = "dataset_endpoint"
+                probe["dataset"] = dataset.name
+                results.append(probe)
+
+        # 3b) Advanced Hunting datasets (DeviceTvm*, etc.) via Graph.
+        if hunting_token:
+            hunting_url = f"{hunting_base}/v1.0/security/runHuntingQuery"
+            for dataset in datasets:
+                if (dataset.source_type or "").lower() != "advancedhunting":
+                    continue
+                table = (dataset.query or dataset.name or "").strip().rstrip(";")
+                if not table:
+                    continue
+                kql = f"{table} | take 1"
+                probe = _probe("POST", hunting_url, hunting_token, json_body={"Query": kql})
+                probe["surface"] = "hunting_dataset"
+                probe["dataset"] = dataset.name
+                probe["query"] = kql
+                results.append(probe)
 
     summary = {
         "ok": all(r.get("ok") for r in results),
